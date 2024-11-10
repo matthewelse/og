@@ -1,18 +1,7 @@
-open! Base
+open! Core
 open! Import
 
-type t =
-  | Char of char
-  | Class of Character_class.t
-  | End_of_line
-  | Group of char list
-  | Neg_group of char list
-  | Opt of t
-  | Or of t * t
-  | Rep1 of t
-  | Seq of t list
-  | Start_of_line
-[@@deriving sexp_of]
+type t [@@deriving sexp_of]
 
 val of_string : string -> t Or_error.t
 
@@ -22,4 +11,6 @@ module Compiled : sig
   val matches : t -> string -> bool
 end
 
+(** [compile regex] compiles the provided regex into a non-deterministic finite
+    automaton (NFA). *)
 val compile : t -> Compiled.t

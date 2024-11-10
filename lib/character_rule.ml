@@ -1,15 +1,15 @@
-open! Base
+open! Core
 open! Import
 
 type t =
   | Class of Character_class.t
-  | One_of of char array
-  | Not_one_of of char array
+  | One_of of char iarray
+  | Not_one_of of char iarray
   | Start_of_line
   | End_of_line
 [@@deriving sexp_of]
 
-let matches t ~input ~offset =
+let matches t ~input ~offset = exclave_
   match t with
   | Class character_class ->
     if offset < String.length input
@@ -18,12 +18,12 @@ let matches t ~input ~offset =
     else None
   | One_of chars ->
     if offset < String.length input
-       && Array.exists chars ~f:(fun c -> Char.equal c input.[offset])
+       && Iarray.exists chars ~f:(fun c -> Char.equal c input.[offset])
     then Some 1
     else None
   | Not_one_of chars ->
     if offset < String.length input
-       && not (Array.exists chars ~f:(fun c -> Char.equal c input.[offset]))
+       && not (Iarray.exists chars ~f:(fun c -> Char.equal c input.[offset]))
     then Some 1
     else None
   | Start_of_line -> if offset = 0 then Some 0 else None

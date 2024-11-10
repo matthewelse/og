@@ -1,4 +1,4 @@
-open! Base
+open! Core
 open! Import
 
 type t =
@@ -15,7 +15,7 @@ type t =
 [@@deriving sexp_of]
 
 let to_nfa t =
-  let rec to_nfa_inner t ~nfa ~current_state =
+  let rec to_nfa_inner t ~(local_ nfa) ~current_state =
     match t with
     | Start_of_line ->
       let accepting_state = Nfa.Builder.fresh_state nfa in
@@ -39,7 +39,7 @@ let to_nfa t =
         nfa
         ~from_state:current_state
         ~to_state:accepting_state
-        (Some (One_of [| c |]));
+        (Some (One_of [: c :]));
       accepting_state
     | Class c ->
       let accepting_state = Nfa.Builder.fresh_state nfa in
@@ -55,7 +55,7 @@ let to_nfa t =
         nfa
         ~from_state:current_state
         ~to_state:accepting_state
-        (Some (One_of (Array.of_list g)));
+        (Some (One_of (Iarray.of_list g)));
       accepting_state
     | Neg_group g ->
       let accepting_state = Nfa.Builder.fresh_state nfa in
@@ -63,7 +63,7 @@ let to_nfa t =
         nfa
         ~from_state:current_state
         ~to_state:accepting_state
-        (Some (Not_one_of (Array.of_list g)));
+        (Some (Not_one_of (Iarray.of_list g)));
       accepting_state
     | Opt t ->
       let accepting_state = to_nfa_inner t ~nfa ~current_state in
@@ -84,10 +84,13 @@ let to_nfa t =
       accepting_state
     | Seq ts ->
       List.fold ts ~init:current_state ~f:(fun current_state t ->
-        to_nfa_inner t ~nfa ~current_state)
+        to_nfa_inner t ~nfa ~current_state) [@nontail]
   in
   Nfa.build (fun builder ->
-    to_nfa_inner t ~nfa:builder ~current_state:(Nfa.Builder.fresh_state builder))
+    to_nfa_inner
+      t
+      ~nfa:builder
+      ~current_state:(Nfa.Builder.fresh_state builder) [@nontail])
 ;;
 
 let parse_escaped parser =
@@ -102,9 +105,9 @@ let parse_escaped parser =
 let parse_group parser =
   let open Or_error.Let_syntax in
   let neg =
-    if [%compare.equal: char option] (Parser.peek parser) (Some '^')
+    if Option.equal__local Char.equal__local (Parser.peek parser) (Some '^')
     then (
-      Parser.take parser |> (ignore : char option -> unit);
+      Parser.drop_exn parser;
       true)
     else false
   in
@@ -168,18 +171,15 @@ let of_string s =
 ;;
 
 module Compiled = struct
-  type t = { nfa : Nfa.t }
+  type t = Nfa.t
 
   let matches t input =
     With_return.with_return (fun { return } ->
       for offset = 0 to String.length input - 1 do
-        if Nfa.eval t.nfa input ~offset then return true
+        if Nfa.eval t input ~offset then return true
       done;
       false)
   ;;
 end
 
-let compile t : Compiled.t =
-  let nfa = to_nfa t in
-  { nfa }
-;;
+let compile t : Compiled.t = to_nfa t

@@ -14,3 +14,5 @@ module Dynarray = struct
       done
   ;;
 end
+
+let sexp_of_iarray = Iarray.sexp_of_t

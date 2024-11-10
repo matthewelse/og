@@ -1,4 +1,4 @@
-open! Base
+open! Core
 open! Import
 
 type t =
@@ -7,6 +7,7 @@ type t =
   }
 
 val create : string -> t
-val peek : t -> char option
-val take : t -> char option
+val peek : t -> char option @ local
+val take : t -> char option @ local
 val is_empty : t -> bool
+val drop_exn : t -> unit
