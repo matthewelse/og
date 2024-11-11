@@ -5,7 +5,10 @@ let command =
     ~summary:"recursively search the current directory for lines matching a pattern"
     [%map_open.Command
       let pattern = flag "E" (required string) ~doc:"PATTERN"
-      and input_source = anon (maybe_with_default "-" ("INPUT" %: string)) in
+      and input_source = anon (maybe_with_default "-" ("INPUT" %: string))
+      and count =
+        flag "c" no_arg ~doc:" count matching input lines without printing matches."
+      in
       fun () ->
         let open Or_error.Let_syntax in
         let in_channel =
@@ -17,11 +20,23 @@ let command =
         (* eprint_s [%message (regex : Regex.t)]; *)
         let compiled = Regex.compile regex in
         (* eprint_s [%message (nfa : Nfa.t) (target_state : Nfa.State.t)]; *)
-        let did_match = ref false in
-        In_channel.iter_lines in_channel ~f:(fun line ->
-          if Regex.Compiled.matches compiled line
-          then (
-            did_match := true;
-            print_endline line));
-        if !did_match then Ok () else Or_error.error_string "no matches"]
+        let num_matches = ref 0 in
+        while
+          try
+            let line = Stdlib.input_line in_channel in
+            if Regex.Compiled.matches compiled line
+            then (
+              incr num_matches;
+              if not count then print_endline line);
+            true
+          with
+          | End_of_file -> false
+        do
+          ()
+        done;
+        if !num_matches > 0
+        then (
+          if count then print_endline (Int.to_string !num_matches);
+          Ok ())
+        else Or_error.error_string "no matches"]
 ;;

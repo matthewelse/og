@@ -2,7 +2,7 @@ open! Core
 open! Import
 
 type t =
-  | Char of char
+  | String of string
   | Class of Character_class.t
   | End_of_line
   | Group of char list
@@ -33,13 +33,13 @@ let to_nfa t =
         ~to_state:accepting_state
         (Some End_of_line);
       accepting_state
-    | Char c ->
+    | String s ->
       let accepting_state = Nfa.Builder.fresh_state nfa in
       Nfa.Builder.add_edge
         nfa
         ~from_state:current_state
         ~to_state:accepting_state
-        (Some (One_of [: c :]));
+        (Some (Literal (String.Search_pattern.create s)));
       accepting_state
     | Class c ->
       let accepting_state = Nfa.Builder.fresh_state nfa in
@@ -97,7 +97,7 @@ let parse_escaped parser =
   match Parser.take parser with
   | Some 'w' -> Ok (Class Alphanumeric)
   | Some 'd' -> Ok (Class Numeric)
-  | Some '\\' -> Ok (Char '\\')
+  | Some '\\' -> Ok (String "\\")
   | Some c -> Or_error.error_string [%string "Unexpected escape sequence \\%{c#Char}."]
   | None -> Or_error.error_string "Unexpected end of pattern. Expected one of [wd\\]."
 ;;
@@ -132,7 +132,26 @@ let rec parse_bracketed parser =
 and parse_sequence parser acc =
   let open Or_error.Let_syntax in
   match Parser.take parser with
-  | None -> Ok (List.rev acc)
+  | None ->
+    (* Attempt to optimise string literals *)
+    let acc =
+      List.group acc ~break:(fun left right ->
+        match left, right with
+        | String _, String _ -> false
+        | _, _ -> true)
+      |> List.concat_map ~f:(function
+        | [] -> []
+        | [ x ] -> [ x ]
+        | xs ->
+          [ String
+              (List.map xs ~f:(function
+                 | String c -> c
+                 | _ -> failwith "BUG! Expected a char, got something else.")
+               |> List.rev
+               |> String.concat)
+          ])
+    in
+    Ok (List.rev acc)
   | Some '\\' ->
     let%bind t = parse_escaped parser in
     parse_sequence parser (t :: acc)
@@ -160,7 +179,7 @@ and parse_sequence parser acc =
      | prev :: acc -> parse_sequence parser (Opt prev :: acc)
      | [] -> Or_error.error_string "Saw + operator, but there was nothing before that.")
   | Some '.' -> parse_sequence parser (Neg_group [] :: acc)
-  | Some c -> parse_sequence parser (Char c :: acc)
+  | Some c -> parse_sequence parser (String (Char.to_string c) :: acc)
 ;;
 
 let of_string s =
@@ -173,13 +192,7 @@ let of_string s =
 module Compiled = struct
   type t = Nfa.t
 
-  let matches t input =
-    With_return.with_return (fun { return } ->
-      for offset = 0 to String.length input - 1 do
-        if Nfa.eval t input ~offset then return true
-      done;
-      false)
-  ;;
+  let matches t input = Nfa.eval t input
 end
 
 let compile t : Compiled.t = to_nfa t

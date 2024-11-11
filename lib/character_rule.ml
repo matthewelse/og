@@ -7,9 +7,10 @@ type t =
   | Not_one_of of char iarray
   | Start_of_line
   | End_of_line
+  | Literal of global_ String.Search_pattern.t
 [@@deriving sexp_of]
 
-let matches (local_ t) ~input ~offset = exclave_
+let matches t ~input ~offset = exclave_
   match t with
   | Class character_class ->
     if offset < String.length input
@@ -28,4 +29,5 @@ let matches (local_ t) ~input ~offset = exclave_
     else None
   | Start_of_line -> if offset = 0 then Some 0 else None
   | End_of_line -> if offset = String.length input then Some 0 else None
+  | Literal l -> String.Search_pattern.index l ~in_:input ~pos:offset
 ;;

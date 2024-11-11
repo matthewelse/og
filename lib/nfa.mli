@@ -32,4 +32,4 @@ val build : (Builder.t @ local -> State.t) @ local -> t
 
 (** Returns [true] if the provided string reaches the accepting state in the
     NFA. *)
-val eval : t -> string -> offset:int -> bool
+val eval : t -> string -> bool

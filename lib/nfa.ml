@@ -31,17 +31,6 @@ module Node = struct
     { t with epsilon_rule = Some target }
   ;;
 
-  let _fold t ~init:acc ~f =
-    let acc =
-      match t.rule with
-      | None -> acc
-      | Some (rule, to_state) -> f acc (Some rule) to_state
-    in
-    match t.epsilon_rule with
-    | None -> acc
-    | Some to_state -> f acc None to_state
-  ;;
-
   let exists t ~f =
     (match t.rule with
      | None -> false
@@ -94,7 +83,7 @@ let build (f : Builder.t @ local -> State.t) =
   { nodes = states; accepting_state }
 ;;
 
-let eval t input =
+let eval_at t input ~offset =
   let rec eval_inner t input ~offset ~current_state =
     if State.equal current_state t.accepting_state
     then true
@@ -109,5 +98,34 @@ let eval t input =
            | Some consumed ->
              eval_inner t input ~offset:(offset + consumed) ~current_state:target)))
   in
-  eval_inner t input ~current_state:State.zero
+  eval_inner t input ~current_state:State.zero ~offset
+;;
+
+let eval t input =
+  let initial_edges = Iarray.get t.nodes 0 in
+  match initial_edges with
+  | { rule = Some (Start_of_line, _); epsilon_rule = None } -> eval_at t input ~offset:0
+  | { rule = Some (Literal l, _); epsilon_rule = None } ->
+    (* Fast path: use kmp to find the start point *)
+    With_return.with_return (fun { return } ->
+      let pos = ref 0 in
+      while
+        match String.Search_pattern.index ~pos:!pos l ~in_:input with
+        | Some offset ->
+          if eval_at t input ~offset
+          then return true
+          else (
+            pos := offset;
+            true)
+        | None -> false
+      do
+        ()
+      done;
+      false)
+  | _ ->
+    With_return.with_return (fun { return } ->
+      for i = 0 to String.length input - 1 do
+        if eval_at t input ~offset:i then return true
+      done;
+      false)
 ;;
