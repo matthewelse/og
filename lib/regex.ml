@@ -119,6 +119,7 @@ let parse_group parser =
       Or_error.error_string [%string "Unexpected end of pattern while parsing a group."]
   in
   let%bind chars = aux [] in
+  let chars = List.rev chars in
   if neg then Ok (Neg_group chars) else Ok (Group chars)
 ;;
 
@@ -152,18 +153,18 @@ let rec parse_bracketed parser =
 
 and parse_sequence parser acc =
   let open Or_error.Let_syntax in
+  let optimise_seq acc =
+    rev_group_by acc ~f:(function
+      | String s -> First s
+      | other -> Second other)
+    |> List.concat_map ~f:(function
+      | First strings -> [ String (String.concat strings) ]
+      | Second others -> others)
+  in
   match Parser.take parser with
   | None ->
     (* Attempt to optimise adjacent string literals by concatenating them together. *)
-    let acc =
-      rev_group_by acc ~f:(function
-        | String s -> First s
-        | other -> Second other)
-      |> List.concat_map ~f:(function
-        | First strings -> [ String (String.concat strings) ]
-        | Second others -> others)
-    in
-    Ok acc
+    Ok (optimise_seq acc)
   | Some '\\' ->
     let%bind t = parse_escaped parser in
     parse_sequence parser (t :: acc)
@@ -175,7 +176,7 @@ and parse_sequence parser acc =
     parse_sequence parser (t :: acc)
   | Some ')' ->
     (* Intentionally stop at this point. *)
-    Ok acc
+    Ok (optimise_seq acc)
   | Some '|' ->
     let left = Seq acc in
     let%bind right = parse_sequence parser [] in
