@@ -1,6 +1,6 @@
 (library
  (name test_og)
- (libraries core og)
+ (libraries core expect_test_helpers_core og)
  (inline_tests)
  (preprocess
   (pps ppx_jane)))

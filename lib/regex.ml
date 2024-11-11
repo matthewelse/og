@@ -203,7 +203,7 @@ let of_string s =
 ;;
 
 module Compiled = struct
-  type t = Nfa.t
+  type t = Nfa.t [@@deriving sexp_of]
 
   let matches t input = Nfa.eval t input
 end

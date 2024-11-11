@@ -29,5 +29,9 @@ let matches t ~input ~offset = exclave_
     else None
   | Start_of_line -> if offset = 0 then Some 0 else None
   | End_of_line -> if offset = String.length input then Some 0 else None
-  | Literal l -> String.Search_pattern.index l ~in_:input ~pos:offset
+  | Literal l ->
+    let substring = String.Search_pattern.pattern l in
+    if String.is_substring_at input ~pos:offset ~substring
+    then Some (String.length substring)
+    else None
 ;;

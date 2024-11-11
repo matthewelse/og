@@ -13,33 +13,12 @@ end =
   Int
 
 module Node = struct
-  type t =
-    { rule : (Character_rule.t * State.t) option
-    ; epsilon_rule : State.t option
-    }
-  [@@deriving sexp_of]
+  type t = (Character_rule.t option * State.t) iarray [@@deriving sexp_of]
 
-  let empty = { rule = None; epsilon_rule = None }
-
-  let set_rule_exn t rule =
-    assert (Option.is_none t.rule);
-    { t with rule = Some rule }
-  ;;
-
-  let set_epsilon_exn t target =
-    assert (Option.is_none t.epsilon_rule);
-    { t with epsilon_rule = Some target }
-  ;;
-
-  let exists t ~f =
-    (match t.rule with
-     | None -> false
-     | Some (rule, to_state) -> f (Some rule) to_state)
-    ||
-    match t.epsilon_rule with
-    | None -> false
-    | Some to_state -> f None to_state
-  ;;
+  let empty = [::]
+  let set_rule t (rule, state) = Iarray.append t [: Some rule, state :]
+  let set_epsilon_exn t target = Iarray.append t [: None, target :]
+  let exists t ~f = Iarray.exists t ~f:(fun (rule, state) -> f rule state)
 end
 
 module Builder = struct
@@ -63,7 +42,7 @@ module Builder = struct
     let node =
       match rule with
       | None -> Node.set_epsilon_exn node to_state
-      | Some rule -> Node.set_rule_exn node (rule, to_state)
+      | Some rule -> Node.set_rule node (rule, to_state)
     in
     Dynarray.set t.states (State.to_int from_state) node
   ;;
@@ -104,8 +83,8 @@ let eval_at t input ~offset =
 let eval t input =
   let initial_edges = Iarray.get t.nodes 0 in
   match initial_edges with
-  | { rule = Some (Start_of_line, _); epsilon_rule = None } -> eval_at t input ~offset:0
-  | { rule = Some (Literal l, _); epsilon_rule = None } ->
+  | [: (Some Start_of_line, _) :] -> eval_at t input ~offset:0
+  | [: (Some (Literal l), _) :] ->
     (* Fast path: use kmp to find the start point *)
     With_return.with_return (fun { return } ->
       let pos = ref 0 in

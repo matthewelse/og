@@ -6,7 +6,7 @@ type t [@@deriving sexp_of]
 val of_string : string -> t Or_error.t
 
 module Compiled : sig
-  type t
+  type t [@@deriving sexp_of]
 
   val matches : t -> string -> bool
 end
