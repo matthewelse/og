@@ -9,7 +9,7 @@ type t =
   | End_of_line
 [@@deriving sexp_of]
 
-let matches t ~input ~offset = exclave_
+let matches (local_ t) ~input ~offset = exclave_
   match t with
   | Class character_class ->
     if offset < String.length input
@@ -18,12 +18,12 @@ let matches t ~input ~offset = exclave_
     else None
   | One_of chars ->
     if offset < String.length input
-       && Iarray.exists chars ~f:(fun c -> Char.equal c input.[offset])
+       && Iarray.exists_local chars ~f:(fun c -> Char.equal c input.[offset])
     then Some 1
     else None
   | Not_one_of chars ->
     if offset < String.length input
-       && not (Iarray.exists chars ~f:(fun c -> Char.equal c input.[offset]))
+       && not (Iarray.exists_local chars ~f:(fun c -> Char.equal c input.[offset]))
     then Some 1
     else None
   | Start_of_line -> if offset = 0 then Some 0 else None

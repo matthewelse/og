@@ -62,9 +62,9 @@ let eval t input =
     if State.equal current_state t.accepting_state
     then true
     else (
-      let edges = Iarray.get_exn t.nodes (State.to_int current_state) in
+      let edges = Iarray.get t.nodes (State.to_int current_state) in
       let edge =
-        Iarray.find_map_local edges ~f:(fun { rule; target } ->
+        Iarray.find_map_local edges ~f:(fun ({ rule; target } : Edge.t) ->
           match Character_rule.matches rule ~input ~offset with
           | None -> None
           | Some consumed -> exclave_ Some (consumed, target))

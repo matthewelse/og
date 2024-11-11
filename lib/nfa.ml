@@ -99,7 +99,7 @@ let eval t input =
     if State.equal current_state t.accepting_state
     then true
     else (
-      let edges = Iarray.get_exn t.nodes (State.to_int current_state) in
+      let edges = Iarray.get t.nodes (State.to_int current_state) in
       Node.exists edges ~f:(fun rule target ->
         match rule with
         | None -> eval_inner t input ~offset ~current_state:target

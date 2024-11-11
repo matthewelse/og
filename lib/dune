@@ -1,6 +1,6 @@
 (library
  (name og)
- (libraries core)
+ (libraries core stdlib_stable)
  (inline_tests)
  (preprocess
   (pps ppx_jane)))
