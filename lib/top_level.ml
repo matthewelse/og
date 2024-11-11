@@ -4,7 +4,7 @@ let command =
   Command.basic_or_error
     ~summary:"recursively search the current directory for lines matching a pattern"
     [%map_open.Command
-      let pattern = flag "E" (required string) ~doc:"PATTERN"
+      let pattern = flag "e" (required string) ~doc:"PATTERN"
       and input_source = anon (maybe_with_default "-" ("INPUT" %: string))
       and count =
         flag "c" no_arg ~doc:" count matching input lines without printing matches."
