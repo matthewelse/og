@@ -122,6 +122,27 @@ let parse_group parser =
   if neg then Ok (Neg_group chars) else Ok (Group chars)
 ;;
 
+let rev_group_by l ~f =
+  let rec aux l ~f ~acc =
+    match l with
+    | [] -> acc
+    | hd :: tl ->
+      let acc =
+        match f hd with
+        | First x ->
+          (match acc with
+           | First y :: xs -> First (x :: y) :: xs
+           | xs -> First [ x ] :: xs)
+        | Second x ->
+          (match acc with
+           | Second y :: xs -> Second (x :: y) :: xs
+           | xs -> Second [ x ] :: xs)
+      in
+      aux tl ~f ~acc
+  in
+  aux l ~f ~acc:[]
+;;
+
 let rec parse_bracketed parser =
   let open Or_error.Let_syntax in
   let%bind seq = parse_sequence parser [] in
@@ -133,25 +154,16 @@ and parse_sequence parser acc =
   let open Or_error.Let_syntax in
   match Parser.take parser with
   | None ->
-    (* Attempt to optimise string literals *)
+    (* Attempt to optimise adjacent string literals by concatenating them together. *)
     let acc =
-      List.group acc ~break:(fun left right ->
-        match left, right with
-        | String _, String _ -> false
-        | _, _ -> true)
+      rev_group_by acc ~f:(function
+        | String s -> First s
+        | other -> Second other)
       |> List.concat_map ~f:(function
-        | [] -> []
-        | [ x ] -> [ x ]
-        | xs ->
-          [ String
-              (List.map xs ~f:(function
-                 | String c -> c
-                 | _ -> failwith "BUG! Expected a char, got something else.")
-               |> List.rev
-               |> String.concat)
-          ])
+        | First strings -> [ String (String.concat strings) ]
+        | Second others -> others)
     in
-    Ok (List.rev acc)
+    Ok acc
   | Some '\\' ->
     let%bind t = parse_escaped parser in
     parse_sequence parser (t :: acc)
