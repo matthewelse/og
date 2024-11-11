@@ -12,3 +12,17 @@ let fold t ~init ~f = Array.fold (unsafe_array_of_iarray t) ~init ~f
 let unsafe_of_array = unsafe_iarray_of_array
 let get_exn t n = Array.get (unsafe_array_of_iarray t) n
 let map t ~f = Array.map (unsafe_array_of_iarray t) ~f |> unsafe_iarray_of_array
+let length t = Array.length (unsafe_array_of_iarray t)
+
+let find_map_local t ~f =
+  let rec aux t ~f i =
+    if i >= length t
+    then None
+    else
+      exclave_
+      match f (get_exn t i) with
+      | None -> aux t ~f (i + 1)
+      | Some x -> Some x
+  in
+  exclave_ aux t ~f 0
+;;

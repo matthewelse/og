@@ -13,3 +13,4 @@ val unsafe_of_array : 'a array -> 'a t
 
 val get_exn : 'a t -> int -> 'a
 val map : 'a t -> f:('a -> 'b) @ local -> 'b t
+val find_map_local : 'a t -> f:('a -> 'b option @ local) @ local -> 'b option @ local

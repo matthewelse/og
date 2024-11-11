@@ -1,5 +1,5 @@
 (** A representation of a nondeterministic finite automata (NFA) for regex
-    matching. *)
+    matching (using the Thompson construction). *)
 
 open! Core
 open! Import
@@ -30,5 +30,6 @@ type t [@@deriving sexp_of]
 
 val build : (Builder.t @ local -> State.t) @ local -> t
 
-(** Returns [true] if the provided string reaches the accepting state in the NFA. *)
+(** Returns [true] if the provided string reaches the accepting state in the
+    NFA. *)
 val eval : t -> string -> offset:int -> bool
