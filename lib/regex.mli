@@ -8,7 +8,7 @@ val of_string : string -> t Or_error.t
 module Compiled : sig
   type t [@@deriving sexp_of]
 
-  val matches : t -> string -> bool
+  val matches : t -> Slice.t @ local -> bool
 end
 
 (** [compile regex] compiles the provided regex into a non-deterministic finite

@@ -39,7 +39,7 @@ let to_nfa t =
         nfa
         ~from_state:current_state
         ~to_state:accepting_state
-        (Some (Literal (String.Search_pattern.create s)));
+        (Some (Literal (Slice.Search_pattern.create (Slice.create s))));
       accepting_state
     | Class c ->
       let accepting_state = Nfa.Builder.fresh_state nfa in

@@ -18,7 +18,7 @@ module Node = struct
   let empty = [::]
   let set_rule t (rule, state) = Iarray.append t [: Some rule, state :]
   let set_epsilon_exn t target = Iarray.append t [: None, target :]
-  let exists t ~f = Iarray.exists t ~f:(fun (rule, state) -> f rule state)
+  let exists t ~f = Iarray.exists t ~f:(fun (rule, state) -> f rule state) [@nontail]
 end
 
 module Builder = struct
@@ -75,7 +75,8 @@ let eval_at t input ~offset =
           (match Character_rule.matches rule ~input ~offset with
            | None -> false
            | Some consumed ->
-             eval_inner t input ~offset:(offset + consumed) ~current_state:target)))
+             eval_inner t input ~offset:(offset + consumed) ~current_state:target)) [@nontail
+                                                                                      ])
   in
   eval_inner t input ~current_state:State.zero ~offset
 ;;
@@ -85,11 +86,11 @@ let eval t input =
   match initial_edges with
   | [: (Some Start_of_line, _) :] -> eval_at t input ~offset:0
   | [: (Some (Literal l), _) :] ->
-    (* Fast path: use kmp to find the start point *)
+    (* Fast path: use [Slice.Search_pattern] to find the start point *)
     With_return.with_return (fun { return } ->
       let pos = ref 0 in
       while
-        match String.Search_pattern.index ~pos:!pos l ~in_:input with
+        match Slice.Search_pattern.index l (Slice.slice ~pos:!pos input) with
         | Some offset ->
           if eval_at t input ~offset
           then return true
@@ -100,11 +101,11 @@ let eval t input =
       do
         ()
       done;
-      false)
+      false) [@nontail]
   | _ ->
     With_return.with_return (fun { return } ->
-      for i = 0 to String.length input - 1 do
+      for i = 0 to Slice.length input - 1 do
         if eval_at t input ~offset:i then return true
       done;
-      false)
+      false) [@nontail]
 ;;

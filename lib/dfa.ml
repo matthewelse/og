@@ -57,7 +57,7 @@ let build (f : Builder.t @ local -> State.t) =
   { nodes = states; accepting_state }
 ;;
 
-let eval t input =
+let eval t input ~offset =
   let rec eval_inner t input ~offset ~current_state =
     if State.equal current_state t.accepting_state
     then true
@@ -74,5 +74,5 @@ let eval t input =
       | Some (consumed, target) ->
         (eval_inner [@tailcall]) t input ~offset:(offset + consumed) ~current_state:target)
   in
-  eval_inner t input ~current_state:State.zero
+  eval_inner t input ~current_state:State.zero ~offset
 ;;

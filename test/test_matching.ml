@@ -1,19 +1,24 @@
 open! Core
 
-let%expect_test "regular expression parsing" =
+let%expect_test "regular expression matching" =
   (* https://regex101.com/ is good for checking these *)
   let test scenario ~ok_inputs ~error_inputs =
     let re = Og.Regex.of_string scenario |> Or_error.ok_exn |> Og.Regex.compile in
-    let ok_matches = List.find ok_inputs ~f:(Fn.non (Og.Regex.Compiled.matches re)) in
+    let test_str re str =
+      let slice = Og.Slice.create_local str in
+      Og.Regex.Compiled.matches re slice [@nontail]
+    in
+    let ok_matches = List.find ok_inputs ~f:(Fn.non (test_str re)) in
     Expect_test_helpers_core.require_none sexp_of_string ok_matches;
-    let error_matches = List.find error_inputs ~f:(Og.Regex.Compiled.matches re) in
+    let error_matches = List.find error_inputs ~f:(test_str re) in
     Expect_test_helpers_core.require_none sexp_of_string error_matches
   in
   test
     "abc"
     ~ok_inputs:[ "abc"; "   abc"; "abcabc" ]
     ~error_inputs:[ "a"; "ab"; "abd"; "ab c"; "" ];
-  [%expect {| |}];
+  [%expect
+    {| |}];
   test "a|bc" ~ok_inputs:[ "a"; "bc"; "abc"; "ab" ] ~error_inputs:[ "b"; "c"; "" ];
   [%expect {| |}];
   test "[abc]" ~ok_inputs:[ "a"; "b"; "c"; "aaabbbccc"; "abc" ] ~error_inputs:[ ""; "d" ];

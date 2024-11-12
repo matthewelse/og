@@ -20,4 +20,4 @@ val build : (Builder.t @ local -> State.t) @ local -> t
 
 (** Returns [true] if the provided string reaches the accepting state in the
     DFA. *)
-val eval : t -> string -> offset:int -> bool
+val eval : t -> Slice.t @ local -> offset:int -> bool
