@@ -52,7 +52,7 @@ let iteri t ~f =
   done
 ;;
 
-let unsafe_slice t ~pos ~len = exclave_ { t with pos = t.pos + pos; len }
+let[@inline always] unsafe_slice t ~pos ~len = exclave_ { t with pos = t.pos + pos; len }
 
 let slice ?(pos = 0) ?len t = exclave_
   let len = Option.value len ~default:(t.len - pos) in
@@ -61,13 +61,37 @@ let slice ?(pos = 0) ?len t = exclave_
   t
 ;;
 
-let memcmp (local_ t) (local_ t') =
+let impl = `c_stub
+
+external memcmp_fast : t @ local -> t @ local -> bool = "slice_memcmp" [@@noalloc]
+
+let memcmp_iter (local_ t) (local_ t') =
   t.len = t'.len
   && (With_return.with_return (fun { return } ->
         for i = 0 to t.len - 1 do
           if not (Char.equal (unsafe_at t i) (unsafe_at t' i)) then return false
         done;
         true) [@nontail])
+;;
+
+let memcmp_rec t t' =
+  let rec aux t t' i =
+    if i >= t.len
+    then true
+    else if not (Char.equal (unsafe_at t i) (unsafe_at t' i))
+    then false
+    else aux t t' (i + 1)
+  in
+  t.len = t'.len && aux t t' 0
+;;
+
+let memcmp =
+  (* Empirically, the OCaml implementations are ~identical, but the C stub is
+     ~500ms faster at churning through the Linux kernel. *)
+  match impl with
+  | `c_stub -> memcmp_fast
+  | `ocaml_iter -> memcmp_iter
+  | `ocaml_rec -> memcmp_rec
 ;;
 
 module Search_pattern = struct

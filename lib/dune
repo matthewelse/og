@@ -3,4 +3,8 @@
  (libraries core stdlib_stable)
  (inline_tests)
  (preprocess
-  (pps ppx_jane)))
+  (pps ppx_jane))
+ (foreign_stubs
+  (language c)
+  (flags -Wall -pedantic)
+  (names slice_stubs)))
