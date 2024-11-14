@@ -4,7 +4,8 @@
  (inline_tests)
  (preprocess
   (pps ppx_jane))
+ (ocamlopt_flags :standard -O3)
  (foreign_stubs
   (language c)
-  (flags -Wall -pedantic)
+  (flags :standard -Wall -pedantic -O3)
   (names slice_stubs)))
