@@ -81,12 +81,10 @@ let eval_at t input ~offset =
   eval_inner t input ~current_state:State.zero ~offset
 ;;
 
-let eval_from t input ~offset =
-  With_return.with_return (fun { return } ->
-    for i = offset to Slice.length input - 1 do
-      if eval_at t input ~offset:i then return true
-    done;
-    false) [@nontail]
+let rec eval_from t input ~offset =
+  if offset >= Slice.length input
+  then false
+  else eval_at t input ~offset || eval_from t input ~offset:(offset + 1)
 ;;
 
 let eval t input =
