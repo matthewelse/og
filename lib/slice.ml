@@ -116,26 +116,25 @@ module Search_pattern = struct
     { pattern; offsets }
   ;;
 
-  let index t haystack =
+  let offset t c = Iarray.unsafe_get t.offsets (Char.to_int c)
+
+  let indexes t haystack ~f =
     (* Boyer-Moore-Horspool string matching *)
-    if length t.pattern > length haystack
-    then None
-    else (
+    if length t.pattern <= length haystack
+    then (
       let k = ref 0 in
-      let result =
-        With_return.with_return (fun { return } ->
-          while length haystack - !k >= length t.pattern do
-            if memcmp (unsafe_slice ~pos:!k ~len:t.pattern.len haystack) t.pattern
-            then return !k
-            else
-              k
-              := !k
-                 + Iarray.unsafe_get
-                     t.offsets
-                     (unsafe_at haystack (!k + length t.pattern - 1) |> Char.to_int)
-          done;
-          -1)
-      in
-      if result = -1 then None else exclave_ Some result)
+      while length haystack - !k >= length t.pattern do
+        if memcmp (unsafe_slice ~pos:!k ~len:t.pattern.len haystack) t.pattern then f !k;
+        k := !k + offset t (unsafe_at haystack (!k + length t.pattern - 1))
+      done)
+  ;;
+
+  let index t haystack =
+    let result =
+      With_return.with_return (fun { return } ->
+        indexes t haystack ~f:return;
+        -1)
+    in
+    if result = -1 then None else exclave_ Some result
   ;;
 end

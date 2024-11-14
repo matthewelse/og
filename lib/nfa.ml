@@ -81,31 +81,24 @@ let eval_at t input ~offset =
   eval_inner t input ~current_state:State.zero ~offset
 ;;
 
+let eval_from t input ~offset =
+  With_return.with_return (fun { return } ->
+    for i = offset to Slice.length input - 1 do
+      if eval_at t input ~offset:i then return true
+    done;
+    false) [@nontail]
+;;
+
 let eval t input =
   let initial_edges = Iarray.get t.nodes 0 in
   match initial_edges with
   | [: (Some Start_of_line, _) :] -> eval_at t input ~offset:0
   | [: (Some (Literal l), _) :] ->
-    (* Fast path: use [Slice.Search_pattern] to find the start point *)
+    (* Fast path: use [Slice.Search_pattern] to find the start point, then use
+       NFA matching. *)
     With_return.with_return (fun { return } ->
-      let pos = ref 0 in
-      while
-        match Slice.Search_pattern.index l (Slice.slice ~pos:!pos input) with
-        | Some offset ->
-          if eval_at t input ~offset
-          then return true
-          else (
-            pos := offset;
-            true)
-        | None -> false
-      do
-        ()
-      done;
+      Slice.Search_pattern.indexes l input ~f:(fun offset ->
+        if eval_from t input ~offset then return true);
       false) [@nontail]
-  | _ ->
-    With_return.with_return (fun { return } ->
-      for i = 0 to Slice.length input - 1 do
-        if eval_at t input ~offset:i then return true
-      done;
-      false) [@nontail]
+  | _ -> eval_from t input ~offset:0
 ;;

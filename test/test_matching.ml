@@ -35,5 +35,9 @@ let%expect_test "regular expression matching" =
   test "(abc)+" ~ok_inputs:[ "abc"; "abcabc" ] ~error_inputs:[ ""; "a"; "ab" ];
   [%expect {| |}];
   test "^abc$" ~ok_inputs:[ "abc" ] ~error_inputs:[ ""; " abc"; "abc "; " abc " ];
-  [%expect {| |}]
+  [%expect {| |}];
+  test
+    "nananax?x"
+    ~ok_inputs:[ "nananax"; "nananaxx"; "nanananaxx" ]
+    ~error_inputs:[ "nanana" ]
 ;;

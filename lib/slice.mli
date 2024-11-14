@@ -7,7 +7,7 @@ type t = private
   ; pos : int
   ; len : int
   }
-[@@deriving sexp_of]
+[@@deriving globalize, sexp_of]
 
 (** Raises if [pos + len > String.length s]. *)
 val create_local : ?pos:int -> ?len:int -> string -> t @ local
@@ -45,5 +45,6 @@ module Search_pattern : sig
 
   val create : slice -> t
   val index : t -> slice @ local -> int option @ local
+  val indexes : t -> slice @ local -> f:(int -> unit) @ local -> unit
   val pattern : t @ local -> slice @ local
 end
