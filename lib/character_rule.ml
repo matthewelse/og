@@ -32,13 +32,12 @@ let matches t ~input ~offset =
   | End_of_line -> if offset = Slice.length input then Some 0 else None
   | Literal l ->
     let substring = Slice.Search_pattern.pattern l in
-    if Slice.length input >= offset + Slice.length substring
-       && Slice.memcmp
-            (* SAFETY: [Slice.length input >= offset + Slice.length substring] *)
-            (Slice.unsafe_slice ~pos:offset ~len:(Slice.length substring) input)
-            substring
-    then (
-      let length = Slice.length substring in
-      exclave_ Some length)
-    else None
+    (match Slice.slice input ~pos:offset ~len:(Slice.length substring) with
+     | None -> None
+     | Some input_substring ->
+       if Slice.memcmp substring input_substring
+       then (
+         let length = Slice.length substring in
+         exclave_ Some length)
+       else None)
 ;;
