@@ -40,8 +40,12 @@ let create_local ?(pos = 0) ?len bytes = exclave_
 
 let length t = t.len
 
-let at (local_ t) ix =
+let at_exn (local_ t) ix =
   if ix >= t.len || ix < 0 then failwith "index out of bounds" else t.bytes.[t.pos + ix]
+;;
+
+let at (local_ t) ix =
+  if ix >= t.len || ix < 0 then None else exclave_ Some t.bytes.[t.pos + ix]
 ;;
 
 let unsafe_at (local_ t) ix = String.unsafe_get t.bytes (t.pos + ix)
@@ -54,11 +58,10 @@ let iteri t ~f =
 
 let[@inline always] unsafe_slice t ~pos ~len = exclave_ { t with pos = t.pos + pos; len }
 
-let slice ?(pos = 0) ?len t = exclave_
-  let len = Option.value len ~default:(t.len - pos) in
-  let t = unsafe_slice ~pos ~len t in
-  check_bounds t;
-  t
+let slice t ~pos ~len =
+  if pos < 0 || len < 0 || pos + len > t.len
+  then None
+  else exclave_ Some (unsafe_slice ~pos ~len t)
 ;;
 
 let impl = `c_stub

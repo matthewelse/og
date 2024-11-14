@@ -17,8 +17,7 @@ let%expect_test "regular expression matching" =
     "abc"
     ~ok_inputs:[ "abc"; "   abc"; "abcabc" ]
     ~error_inputs:[ "a"; "ab"; "abd"; "ab c"; "" ];
-  [%expect
-    {| |}];
+  [%expect {| |}];
   test "a|bc" ~ok_inputs:[ "a"; "bc"; "abc"; "ab" ] ~error_inputs:[ "b"; "c"; "" ];
   [%expect {| |}];
   test "[abc]" ~ok_inputs:[ "a"; "b"; "c"; "aaabbbccc"; "abc" ] ~error_inputs:[ ""; "d" ];
