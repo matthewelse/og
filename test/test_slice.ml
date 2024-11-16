@@ -17,6 +17,59 @@ let%expect_test "test string matching" =
   [%expect {| (result (0)) |}]
 ;;
 
+let%expect_test "test memchr" =
+  let test ?offset input chr =
+    let pos = Option.value ~default:0 offset in
+    let slice =
+      Slice.create input |> Slice.slice_exn ~pos ~len:(String.length input - pos)
+    in
+    print_endline [%string "slice: %{Slice.to_string slice}"];
+    Slice.memchr slice chr
+    |> [%globalize: int option]
+    |> [%sexp_of: int option]
+    |> print_s
+  in
+  test "asdf\r\n" '\n';
+  [%expect {|
+    slice: asdf
+
+    (5)
+    |}];
+  test "asdf\r\n" 'e';
+  [%expect {|
+    slice: asdf
+
+    ()
+    |}];
+  test "" 'e';
+  [%expect {|
+    slice:
+    ()
+    |}];
+  test "aaaa" 'a';
+  [%expect {|
+    slice: aaaa
+    (0)
+    |}];
+  test ~offset:2 "asdf\r\n" '\n';
+  [%expect {|
+    slice: df
+
+    (3)
+    |}];
+  test ~offset:3 "asdf\r\n" 'e';
+  [%expect {|
+    slice: f
+
+    ()
+    |}];
+  test ~offset:2 "aaaa" 'a';
+  [%expect {|
+    slice: aa
+    (0)
+    |}]
+;;
+
 let%expect_test "test string matching (string length 0)" =
   let pat = Slice.Search_pattern.create (Slice.create "") in
   let prev_index = ref (-1) in
@@ -25,16 +78,17 @@ let%expect_test "test string matching (string length 0)" =
     prev_index := index;
     print_s [%message (index : int)]);
   [%expect.unreachable]
-[@@expect.uncaught_exn {|
+[@@expect.uncaught_exn
+  {|
   (* CR expect_test_collector: This test expectation appears to contain a backtrace.
      This is strongly discouraged as backtraces are fragile.
      Please change this test to not include a backtrace. *)
   (Failure "repeated an index.")
   Raised at Stdlib.failwith in file "stdlib.ml" (inlined), line 35, characters 17-33
-  Called from Test_og__Test_slice.(fun) in file "test/test_slice.ml", line 24, characters 32-61
-  Called from Og__Slice.Search_pattern.indexes_from in file "lib/slice.ml" (inlined), line 126, characters 46-54
-  Called from Og__Slice.Search_pattern.indexes in file "lib/slice.ml", line 136, characters 30-66
-  Called from Test_og__Test_slice.(fun) in file "test/test_slice.ml", lines 23-26, characters 2-199
+  Called from Test_og__Test_slice.(fun) in file "test/test_slice.ml", line 77, characters 32-61
+  Called from Og__Slice.Make.Search_pattern.indexes_from in file "lib/slice.ml" (inlined), line 162, characters 48-56
+  Called from Og__Slice.Make.Search_pattern.indexes in file "lib/slice.ml", line 172, characters 32-68
+  Called from Test_og__Test_slice.(fun) in file "test/test_slice.ml", lines 76-79, characters 2-199
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
 
   Trailing output

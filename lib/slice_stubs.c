@@ -20,3 +20,20 @@ CAMLprim value slice_memcmp(value first, value second) {
 
     return Val_bool(0 == memcmp(first_string + first_pos, second_string + second_pos, len));
 }
+
+
+CAMLprim value slice_memchr(value haystack, value needle) {
+    const char* string = String_val(Field(haystack, 0));
+    int         pos    = Int_val   (Field(haystack, 1));
+    int         len    = Int_val   (Field(haystack, 2));
+
+    char chr = Int_val(needle);
+
+    const char* result = memchr(string + pos, chr, len);
+
+    if (result == NULL) {
+        return Val_int(-1);
+    }
+
+    return Val_int(result - (string + pos));
+}
