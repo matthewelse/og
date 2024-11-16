@@ -48,14 +48,16 @@ module DState : sig
   type t [@@deriving compare, sexp_of]
 
   include Comparable.S_plain with type t := t
+  include Hashable.S_plain with type t := t
 
   val create : State.t list -> t
   val fold : t -> init:'acc -> f:('acc -> State.t -> 'acc) @ local -> 'acc
   val mem : t -> State.t -> bool
 end = struct
-  type t = Bitset.t [@@deriving compare, sexp_of]
+  type t = Bitset.t [@@deriving compare, hash, sexp_of]
 
   include functor Comparable.Make_plain
+  include functor Hashable.Make_plain
 
   let create states = Bitset.of_list (List.map states ~f:State.to_int)
 
@@ -78,13 +80,21 @@ end = struct
   let length = 256
   let char_ix c = Char.to_int c
   let create () = Array.create ~len:length None
-  let[@inline] ( .:() ) t c = t.(char_ix c)
-  let[@inline] ( .:()<- ) t c val_ = t.(char_ix c) <- val_
+
+  let[@inline] ( .:() ) t c =
+    (* SAFETY: [0 <= char_ix c < 256] *)
+    Array.unsafe_get t (char_ix c)
+  ;;
+
+  let[@inline] ( .:()<- ) t c val_ =
+    (* SAFETY: [0 <= char_ix c < 256] *)
+    Array.unsafe_set t (char_ix c) val_
+  ;;
 end
 
 type t =
   { nfa : Node.t iarray
-  ; mutable cache : DNode.t DState.Map.t
+  ; cache : DNode.t DState.Table.t
   ; accepting_state : State.t
   ; flags : Flags.t
   ; look_for_constant : Slice.Search_pattern.t option
@@ -102,7 +112,12 @@ let build ~flags ~look_for_constant (local_ (f : Builder.t @ local -> State.t)) 
       Option.value_exn ~message:"BUG: a node was not initialized" node)
     |> Iarray.of_list
   in
-  { nfa = states; cache = DState.Map.empty; accepting_state; flags; look_for_constant }
+  { nfa = states
+  ; cache = DState.Table.create ()
+  ; accepting_state
+  ; flags
+  ; look_for_constant
+  }
 ;;
 
 let compile (re : Regex0.t) =
@@ -184,22 +199,14 @@ let compile (re : Regex0.t) =
     (fun builder -> aux builder re.re ~initial_state:(Builder.fresh_state builder))
 ;;
 
-let get_state (t : t) state = Iarray.get t.nfa (State.to_int state)
-
-let find_or_add_dstate t dstate =
-  match Map.find t.cache dstate with
-  | Some dnode -> dnode
-  | None ->
-    let dnode = DNode.create () in
-    t.cache <- Map.set t.cache ~key:dstate ~data:dnode;
-    dnode
-;;
+let unsafe_get_state (t : t) state = Iarray.unsafe_get t.nfa (State.to_int state)
+let find_or_add_dstate t dstate = Hashtbl.find_or_add t.cache dstate ~default:DNode.create
 
 let rec add_state t next_state acc ~generation ~state_generations =
   if state_generations.(State.to_int next_state) = !generation
   then acc
   else (
-    match get_state t next_state with
+    match unsafe_get_state t next_state with
     | Jump s -> add_state t s acc ~generation ~state_generations
     | Split (s1, s2) ->
       let acc = add_state t s1 acc ~generation ~state_generations in
@@ -208,25 +215,23 @@ let rec add_state t next_state acc ~generation ~state_generations =
 ;;
 
 let rec eval_inner t (local_ input) ~offset ~dstate ~generation ~state_generations =
+  let open DNode in
   generation := !generation + 1;
   let dnode = find_or_add_dstate t dstate in
-  let open DNode in
   (DState.mem dstate t.accepting_state
    && ((not (Flags.mem t.flags Require_eol)) || offset = Slice.length input))
   ||
   match Slice.at input offset with
-  | None ->
-    DState.mem dstate t.accepting_state
-    && ((not (Flags.mem t.flags Require_eol)) || offset = Slice.length input)
+  | None -> false
   | Some c ->
     let dstate =
       match dnode.:(c) with
-      | Some dstate' -> dstate'
+      | Some dstate -> dstate
       | None ->
         let nlist =
           DState.fold dstate ~init:[] ~f:(fun acc state ->
             (* TODO melse: safety assertion *)
-            let rule = get_state t state in
+            let rule = unsafe_get_state t state in
             match rule with
             | Match (cs, next_state) ->
               if Charset.mem cs c

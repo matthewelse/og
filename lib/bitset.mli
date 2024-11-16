@@ -1,6 +1,6 @@
 open! Core
 
-type t = int list [@@deriving compare, sexp_of]
+type t = int list [@@deriving compare, hash, sexp_of]
 
 val empty : t
 val singleton : int -> t

@@ -2,7 +2,7 @@ open! Core
 
 (* bitset represented as a list of ocaml 63 bit ints *)
 
-type t = int list [@@deriving compare, sexp_of]
+type t = int list [@@deriving compare, hash, sexp_of]
 
 let empty = []
 
