@@ -1,6 +1,6 @@
 (library
  (name og)
- (libraries core stdlib_stable stdlib_upstream_compatible)
+ (libraries core core_unix stdlib_stable stdlib_upstream_compatible)
  (inline_tests)
  (preprocess
   (pps ppx_jane))
