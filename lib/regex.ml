@@ -1,97 +1,6 @@
 open! Core
 open! Import
-
-type t =
-  | String of string
-  | Class of Character_class.t
-  | End_of_line
-  | Group of char list
-  | Neg_group of char list
-  | Opt of t
-  | Or of t * t
-  | Rep1 of t
-  | Seq of t list
-  | Start_of_line
-[@@deriving sexp_of]
-
-let to_nfa t =
-  let rec to_nfa_inner t ~(local_ nfa) ~current_state =
-    match t with
-    | Start_of_line ->
-      let accepting_state = Nfa.Builder.fresh_state nfa in
-      Nfa.Builder.add_edge
-        nfa
-        ~from_state:current_state
-        ~to_state:accepting_state
-        (Some Start_of_line);
-      accepting_state
-    | End_of_line ->
-      let accepting_state = Nfa.Builder.fresh_state nfa in
-      Nfa.Builder.add_edge
-        nfa
-        ~from_state:current_state
-        ~to_state:accepting_state
-        (Some End_of_line);
-      accepting_state
-    | String s ->
-      let accepting_state = Nfa.Builder.fresh_state nfa in
-      Nfa.Builder.add_edge
-        nfa
-        ~from_state:current_state
-        ~to_state:accepting_state
-        (Some (Literal (Slice.Search_pattern.create (Slice.create s))));
-      accepting_state
-    | Class c ->
-      let accepting_state = Nfa.Builder.fresh_state nfa in
-      Nfa.Builder.add_edge
-        nfa
-        ~from_state:current_state
-        ~to_state:accepting_state
-        (Some (Class c));
-      accepting_state
-    | Group g ->
-      let accepting_state = Nfa.Builder.fresh_state nfa in
-      Nfa.Builder.add_edge
-        nfa
-        ~from_state:current_state
-        ~to_state:accepting_state
-        (Some (One_of (Iarray.of_list g)));
-      accepting_state
-    | Neg_group g ->
-      let accepting_state = Nfa.Builder.fresh_state nfa in
-      Nfa.Builder.add_edge
-        nfa
-        ~from_state:current_state
-        ~to_state:accepting_state
-        (Some (Not_one_of (Iarray.of_list g)));
-      accepting_state
-    | Opt t ->
-      let accepting_state = to_nfa_inner t ~nfa ~current_state in
-      Nfa.Builder.add_edge nfa ~from_state:current_state ~to_state:accepting_state None;
-      accepting_state
-    | Or (first, second) ->
-      let first_accepting_state = to_nfa_inner first ~nfa ~current_state in
-      let second_accepting_state = to_nfa_inner second ~nfa ~current_state in
-      Nfa.Builder.add_edge
-        nfa
-        ~from_state:second_accepting_state
-        ~to_state:first_accepting_state
-        None;
-      first_accepting_state
-    | Rep1 t ->
-      let accepting_state = to_nfa_inner t ~nfa ~current_state in
-      Nfa.Builder.add_edge nfa ~from_state:accepting_state ~to_state:current_state None;
-      accepting_state
-    | Seq ts ->
-      List.fold ts ~init:current_state ~f:(fun current_state t ->
-        to_nfa_inner t ~nfa ~current_state) [@nontail]
-  in
-  Nfa.build (fun builder ->
-    to_nfa_inner
-      t
-      ~nfa:builder
-      ~current_state:(Nfa.Builder.fresh_state builder) [@nontail])
-;;
+include Regex0
 
 let parse_escaped parser =
   match Parser.take parser with
@@ -203,9 +112,22 @@ let of_string s =
 ;;
 
 module Compiled = struct
-  type t = Nfa.t [@@deriving sexp_of]
+  type t =
+    | T :
+        { impl : (module Implementation.S with type t = 't)
+        ; compiled : 't
+        }
+        -> t
 
-  let matches t input = Nfa.eval t input
+  let sexp_of_t (T { impl = (module Impl); compiled }) = Impl.sexp_of_t compiled
+  let matches (T { impl = (module Impl); compiled }) input = Impl.eval compiled input
 end
 
-let compile t : Compiled.t = to_nfa t
+let compile ?(impl = Implementation.Nfa_backtrack) t : Compiled.t =
+  let (module Impl : Implementation.S) =
+    match impl with
+    | Nfa_backtrack -> (module Nfa)
+  in
+  let compiled = Impl.compile t in
+  T { impl = (module Impl); compiled }
+;;

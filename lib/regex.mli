@@ -13,4 +13,4 @@ end
 
 (** [compile regex] compiles the provided regex into a non-deterministic finite
     automaton (NFA). *)
-val compile : t -> Compiled.t
+val compile : ?impl:Implementation.t -> t -> Compiled.t
