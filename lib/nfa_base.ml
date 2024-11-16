@@ -51,15 +51,18 @@ end
 type t =
   { nodes : Node.t iarray
   ; accepting_state : State.t
+  ; flags : Flags.t
   }
 [@@deriving sexp_of]
 
-let build (f : Builder.t @ local -> State.t) =
+let flags t = t.flags
+
+let build ~flags (f : Builder.t @ local -> State.t) =
   let builder = Builder.create () in
   let accepting_state = f builder in
   let%tydi { states; _ } = builder in
   let states = Iarray.unsafe_of_array (Dynarray.to_array states) in
-  { nodes = states; accepting_state }
+  { nodes = states; accepting_state; flags }
 ;;
 
 let[@inline] node t state = Iarray.get t.nodes (State.to_int state)
@@ -67,24 +70,8 @@ let initial_state _t = State.zero
 let accepting_state t = t.accepting_state
 
 let compile (re : Regex0.t) =
-  let rec to_nfa_inner builder (re : Regex0.t) ~current_state =
+  let rec to_nfa_inner builder (re : Regex0.Rule.t) ~current_state =
     match re with
-    | Start_of_line ->
-      let accepting_state = Builder.fresh_state builder in
-      Builder.add_edge
-        builder
-        ~from_state:current_state
-        ~to_state:accepting_state
-        (Some Start_of_line);
-      accepting_state
-    | End_of_line ->
-      let accepting_state = Builder.fresh_state builder in
-      Builder.add_edge
-        builder
-        ~from_state:current_state
-        ~to_state:accepting_state
-        (Some End_of_line);
-      accepting_state
     | String s ->
       let accepting_state = Builder.fresh_state builder in
       Builder.add_edge
@@ -138,6 +125,6 @@ let compile (re : Regex0.t) =
       List.fold res ~init:current_state ~f:(fun current_state re ->
         to_nfa_inner builder re ~current_state) [@nontail]
   in
-  build (fun builder ->
-    to_nfa_inner builder re ~current_state:(Builder.fresh_state builder) [@nontail])
+  build ~flags:re.flags (fun builder ->
+    to_nfa_inner builder re.re ~current_state:(Builder.fresh_state builder) [@nontail])
 ;;

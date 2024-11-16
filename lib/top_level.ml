@@ -8,6 +8,16 @@ let command =
       and input_source = anon (maybe_with_default "-" ("INPUT" %: string))
       and count =
         flag "c" no_arg ~doc:" count matching input lines without printing matches."
+      and impl =
+        flag
+          "impl"
+          (optional_with_default
+             Implementation.Nfa_backtrack
+             (Arg_type.enumerated_sexpable
+                ~case_sensitive:false
+                ~accept_unique_prefixes:true
+                (module Implementation)))
+          ~doc:"IMPL which implementation to use."
         (* and buffer_size =
         flag
           "buffer-size"
@@ -22,7 +32,7 @@ let command =
           | input_source -> In_channel.create input_source
         in
         let%bind regex = Regex.of_string pattern in
-        let compiled = Regex.compile regex in
+        let compiled = Regex.compile ~impl regex in
         let num_matches = ref 0 in
         (* let buffer = Bytes.create buffer_size in *)
         while

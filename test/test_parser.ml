@@ -7,23 +7,23 @@ let%expect_test "regular expression parsing" =
     print_s [%sexp (re : Og.Regex.t)]
   in
   test "abc";
-  [%expect {| (String abc) |}];
+  [%expect {| ((re (String abc)) (flags ())) |}];
   test "a|bc";
-  [%expect {| (Or (Seq ((String a))) (Seq ((String bc)))) |}];
+  [%expect {| ((re (Or (Seq ((String a))) (Seq ((String bc))))) (flags ())) |}];
   test "[abc]";
-  [%expect {| (Group (a b c)) |}];
+  [%expect {| ((re (Group (a b c))) (flags ())) |}];
   test "[^abc]";
-  [%expect {| (Neg_group (a b c)) |}];
+  [%expect {| ((re (Neg_group (a b c))) (flags ())) |}];
   test "\\d";
-  [%expect {| (Class Numeric) |}];
+  [%expect {| ((re (Class Numeric)) (flags ())) |}];
   test "\\w";
-  [%expect {| (Class Alphanumeric) |}];
+  [%expect {| ((re (Class Alphanumeric)) (flags ())) |}];
   test "a?bc";
-  [%expect {| (Seq ((Opt (String a)) (String bc))) |}];
+  [%expect {| ((re (Seq ((Opt (String a)) (String bc)))) (flags ())) |}];
   test "a+bc";
-  [%expect {| (Seq ((Rep1 (String a)) (String bc))) |}];
+  [%expect {| ((re (Seq ((Rep1 (String a)) (String bc)))) (flags ())) |}];
   test "(abc)+";
-  [%expect {| (Rep1 (String abc)) |}];
+  [%expect {| ((re (Rep1 (String abc))) (flags ())) |}];
   test "^abc$";
-  [%expect {| (Seq (Start_of_line (String abc) End_of_line)) |}]
+  [%expect {| ((re (String abc)) (flags (Require_sol Require_eol))) |}]
 ;;

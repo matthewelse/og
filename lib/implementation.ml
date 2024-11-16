@@ -9,5 +9,5 @@ end
 
 type t =
   | Nfa_backtrack
-  | Nfa_thompson
-[@@deriving sexp_of]
+  | Nfa_hybrid
+[@@deriving enumerate, sexp_of]

@@ -1,7 +1,8 @@
 open! Core
 
 type t =
-  { global_ bytes : string
+  { (* If you change this, update the implementation of [slice_stubs.c]. *)
+    global_ bytes : string
   ; pos : int
   ; len : int
   }

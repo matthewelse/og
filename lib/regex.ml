@@ -3,6 +3,7 @@ open! Import
 include Regex0
 
 let parse_escaped parser =
+  let open Rule in
   match Parser.take parser with
   | Some 'w' -> Ok (Class Alphanumeric)
   | Some 'd' -> Ok (Class Numeric)
@@ -13,6 +14,7 @@ let parse_escaped parser =
 
 let parse_group parser =
   let open Or_error.Let_syntax in
+  let open Rule in
   let neg =
     if Option.equal__local Char.equal__local (Parser.peek parser) (Some '^')
     then (
@@ -55,6 +57,7 @@ let rev_group_by l ~f =
 
 let rec parse_bracketed parser =
   let open Or_error.Let_syntax in
+  let open Rule in
   let%bind seq = parse_sequence parser [] in
   match seq with
   | [ t ] -> Ok t
@@ -62,6 +65,7 @@ let rec parse_bracketed parser =
 
 and parse_sequence parser acc =
   let open Or_error.Let_syntax in
+  let open Rule in
   let optimise_seq acc =
     rev_group_by acc ~f:(function
       | String s -> First s
@@ -90,8 +94,6 @@ and parse_sequence parser acc =
     let left = Seq acc in
     let%bind right = parse_sequence parser [] in
     parse_sequence parser [ Or (left, Seq right) ]
-  | Some '^' -> parse_sequence parser (Start_of_line :: acc)
-  | Some '$' -> parse_sequence parser (End_of_line :: acc)
   | Some '+' ->
     (match acc with
      | prev :: acc -> parse_sequence parser (Rep1 prev :: acc)
@@ -105,10 +107,25 @@ and parse_sequence parser acc =
 ;;
 
 let of_string s =
+  let flags, s =
+    match String.chop_suffix s ~suffix:"$" with
+    | None -> Flags.empty, s
+    | Some s -> Flags.singleton Require_eol, s
+  in
   let parser = Parser.create s in
-  match%bind.Or_error parse_sequence parser [] with
-  | [ just ] -> Ok just
-  | other -> Ok (Seq other)
+  let flags =
+    if Option.equal__local Char.equal__local (Parser.peek parser) (Some '^')
+    then (
+      Parser.drop_exn parser;
+      Flags.add flags Require_sol)
+    else flags
+  in
+  let%bind.Or_error re =
+    match%bind.Or_error parse_sequence parser [] with
+    | [ just ] -> Ok just
+    | other -> Ok (Rule.Seq other)
+  in
+  Ok { re; flags }
 ;;
 
 module Compiled = struct
@@ -127,7 +144,7 @@ let compile ?(impl = Implementation.Nfa_backtrack) t : Compiled.t =
   let (module Impl : Implementation.S) =
     match impl with
     | Nfa_backtrack -> (module Nfa)
-    | Nfa_thompson -> (module Nfa_thompson)
+    | Nfa_hybrid -> (module Nfa_hybrid)
   in
   let compiled = Impl.compile t in
   T { impl = (module Impl); compiled }

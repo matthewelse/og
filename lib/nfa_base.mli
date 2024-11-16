@@ -25,7 +25,7 @@ end
 
 type t [@@deriving sexp_of]
 
-val build : (Builder.t @ local -> State.t) @ local -> t
+val flags : t -> Flags.t
 val accepting_state : t -> State.t
 
 module Node : sig

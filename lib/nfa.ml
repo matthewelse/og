@@ -5,7 +5,7 @@ include Nfa_base
 let eval_at t input ~offset =
   let rec eval_inner t input ~offset ~current_state =
     if State.equal current_state (accepting_state t)
-    then true
+    then (not (Flags.mem (flags t) Require_eol)) || offset = Slice.length input
     else (
       let edges = node t current_state in
       Node.exists edges ~f:(fun rule target ->
@@ -29,14 +29,16 @@ let rec eval_from t input ~offset =
 
 let eval t input =
   let initial_edges = node t (initial_state t) in
-  match initial_edges with
-  | [: (Some Start_of_line, _) :] -> eval_at t input ~offset:0
-  | [: (Some (Literal l), _) :] ->
-    (* Fast path: use [Slice.Search_pattern] to find the start point, then use
+  if Flags.mem (flags t) Require_sol
+  then eval_at t input ~offset:0
+  else (
+    match initial_edges with
+    | [: (Some (Literal l), _) :] ->
+      (* Fast path: use [Slice.Search_pattern] to find the start point, then use
        NFA matching. *)
-    With_return.with_return (fun { return } ->
-      Slice.Search_pattern.indexes l input ~f:(fun offset ->
-        if eval_from t input ~offset then return true);
-      false) [@nontail]
-  | _ -> eval_from t input ~offset:0
+      With_return.with_return (fun { return } ->
+        Slice.Search_pattern.indexes l input ~f:(fun offset ->
+          if eval_from t input ~offset then return true);
+        false) [@nontail]
+    | _ -> eval_from t input ~offset:0)
 ;;
