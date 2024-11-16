@@ -86,8 +86,8 @@ let%expect_test "test string matching (string length 0)" =
   (Failure "repeated an index.")
   Raised at Stdlib.failwith in file "stdlib.ml" (inlined), line 35, characters 17-33
   Called from Test_og__Test_slice.(fun) in file "test/test_slice.ml", line 77, characters 32-61
-  Called from Og__Slice.Make.Search_pattern.indexes_from in file "lib/slice.ml" (inlined), line 162, characters 48-56
-  Called from Og__Slice.Make.Search_pattern.indexes in file "lib/slice.ml", line 172, characters 32-68
+  Called from Og__Slice.Make.Search_pattern.indexes_from in file "lib/slice.ml" (inlined), line 172, characters 48-56
+  Called from Og__Slice.Make.Search_pattern.indexes in file "lib/slice.ml", line 182, characters 32-68
   Called from Test_og__Test_slice.(fun) in file "test/test_slice.ml", lines 76-79, characters 2-199
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
 

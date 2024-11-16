@@ -6,6 +6,7 @@ module type S = sig
   val sub_string : (t, string) Blit.sub_global
   val length : t -> int
   val unsafe_get : t -> int -> char
+  val unsafe_to_string : t -> string
 end
 
 module Make (Data : S) = struct
@@ -24,6 +25,15 @@ module Make (Data : S) = struct
   end
 
   let to_string t = Data.sub_string t.bytes ~pos:t.pos ~len:t.len
+
+  let print_endline t =
+    Out_channel.output_substring
+      stdout
+      ~buf:(Data.unsafe_to_string t.bytes)
+      ~pos:t.pos
+      ~len:t.len;
+    Out_channel.newline stdout
+  ;;
 
   let check_bounds t =
     if t.pos + t.len > Data.length t.bytes
@@ -187,6 +197,10 @@ module Bytes = struct
       include Bytes
 
       let sub_string t ~pos ~len = Bytes.sub t ~pos ~len |> to_string
+
+      let unsafe_to_string t =
+        Bytes.unsafe_to_string ~no_mutation_while_string_reachable:t
+      ;;
     end)
 
   let unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len =
@@ -213,6 +227,7 @@ module String = Make (struct
     include String
 
     let sub_string = sub
+    let unsafe_to_string t = t
   end)
 
 include String
