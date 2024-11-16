@@ -7,4 +7,7 @@ module type S = sig
   val eval : t -> Slice.t @ local -> bool
 end
 
-type t = Nfa_backtrack [@@deriving sexp_of]
+type t =
+  | Nfa_backtrack
+  | Nfa_thompson
+[@@deriving sexp_of]

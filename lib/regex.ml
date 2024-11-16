@@ -127,6 +127,7 @@ let compile ?(impl = Implementation.Nfa_backtrack) t : Compiled.t =
   let (module Impl : Implementation.S) =
     match impl with
     | Nfa_backtrack -> (module Nfa)
+    | Nfa_thompson -> (module Nfa_thompson)
   in
   let compiled = Impl.compile t in
   T { impl = (module Impl); compiled }
