@@ -53,7 +53,7 @@ let command =
   Command.basic_or_error
     ~summary:"recursively search the current directory for lines matching a pattern"
     [%map_open.Command
-      let pattern = flag "e" (required string) ~doc:"PATTERN"
+      let pattern = anon ("PATTERN" %: string)
       and count =
         flag "c" no_arg ~doc:" count matching input lines without printing matches."
       and impl =
@@ -76,7 +76,7 @@ let command =
           "max-buffer-size"
           (optional_with_default 65536 int)
           ~doc:"BYTES maximum number of bytes to pre-allocate into the read buffer."
-      and input_source = anon (maybe_with_default "-" ("INPUT" %: string)) in
+      and input_source = anon (maybe_with_default "." ("INPUT" %: string)) in
       fun () ->
         let open Or_error.Let_syntax in
         let source : Source.t =
