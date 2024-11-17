@@ -6,7 +6,7 @@ let%expect_test "regular expression matching" =
     let test scenario ~ok_inputs ~error_inputs =
       let re = Og.Regex.of_string scenario |> Or_error.ok_exn |> Og.Regex.compile ~impl in
       let test_str re str =
-        let slice = Og.Slice.create_local str in
+        let slice = Og_utils.Slice.create_local str in
         Og.Regex.Compiled.matches re slice [@nontail]
       in
       let ok_matches = List.find ok_inputs ~f:(Fn.non (test_str re)) in

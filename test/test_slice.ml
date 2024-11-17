@@ -1,5 +1,5 @@
 open! Core
-module Slice = Og.Slice
+module Slice = Og_utils.Slice
 
 let%expect_test "string slices" =
   Quickcheck.test [%quickcheck.generator: string] ~sexp_of:[%sexp_of: string] ~f:(fun s ->
@@ -78,15 +78,16 @@ let%expect_test "test string matching (string length 0)" =
     prev_index := index;
     print_s [%message (index : int)]);
   [%expect.unreachable]
-[@@expect.uncaught_exn {|
+[@@expect.uncaught_exn
+  {|
   (* CR expect_test_collector: This test expectation appears to contain a backtrace.
      This is strongly discouraged as backtraces are fragile.
      Please change this test to not include a backtrace. *)
   (Failure "repeated an index.")
   Raised at Stdlib.failwith in file "stdlib.ml" (inlined), line 35, characters 17-33
   Called from Test_og__Test_slice.(fun) in file "test/test_slice.ml", line 77, characters 32-61
-  Called from Og__Slice.Make.Search_pattern.indexes_from in file "lib/slice.ml" (inlined), line 178, characters 48-56
-  Called from Og__Slice.Make.Search_pattern.indexes in file "lib/slice.ml", line 188, characters 32-68
+  Called from Og_utils__Slice.Make.Search_pattern.indexes_from in file "utils/slice.ml" (inlined), line 178, characters 48-56
+  Called from Og_utils__Slice.Make.Search_pattern.indexes in file "utils/slice.ml", line 188, characters 32-68
   Called from Test_og__Test_slice.(fun) in file "test/test_slice.ml", lines 76-79, characters 2-199
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
 
@@ -98,9 +99,9 @@ let%expect_test "test string matching (string length 0)" =
 
 let%expect_test "quickcheck" =
   let test_slice ~needle ~haystack =
-    let needle = Og.Slice.Search_pattern.create (Slice.create needle) in
+    let needle = Slice.Search_pattern.create (Slice.create needle) in
     [%globalize: int option]
-      (Og.Slice.Search_pattern.index needle (Slice.create_local haystack)) [@nontail]
+      (Slice.Search_pattern.index needle (Slice.create_local haystack)) [@nontail]
   in
   let test_string ~needle ~haystack =
     let needle = String.Search_pattern.create needle in

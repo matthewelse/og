@@ -8,3 +8,6 @@ let fold t ~init ~f = fold_left t ~init ~f
 
 external unsafe_of_array : ('a : any). 'a array -> 'a t = "%identity"
 [@@layout_poly] [@@noalloc]
+
+external unsafe_get : ('a : any). 'a iarray -> int -> 'a = "%array_unsafe_get"
+[@@layout_poly] [@@noalloc]

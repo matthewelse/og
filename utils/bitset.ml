@@ -70,7 +70,7 @@ let exists t ~(local_ f) =
     false) [@nontail]
 ;;
 
-let%expect_test "asdf" =
+let%expect_test "test basic functionality" =
   iter [ 0x0 ] ~f:(fun i -> Printf.printf "%d " i);
   [%expect {| |}];
   iter [ 0x1 ] ~f:(fun i -> Printf.printf "%d " i);
