@@ -77,11 +77,29 @@ let%expect_test "test string matching (string length 0)" =
     if !prev_index = index then failwith "repeated an index.";
     prev_index := index;
     print_s [%message (index : int)]);
-  [%expect {|
+  [%expect
+    {|
     (index 0)
     (index 1)
     (index 2)
     (index 3)
+    (index 4)
+    |}];
+  (* Core's implementation for comparison. *)
+  let pat = String.Search_pattern.create "" in
+  let prev_index = ref (-1) in
+  String.Search_pattern.index_all pat ~in_:"asdf" ~may_overlap:true
+  |> List.iter ~f:(fun index ->
+    if !prev_index = index then failwith "repeated an index.";
+    prev_index := index;
+    print_s [%message (index : int)]);
+  [%expect
+    {|
+    (index 0)
+    (index 1)
+    (index 2)
+    (index 3)
+    (index 4)
     |}]
 ;;
 

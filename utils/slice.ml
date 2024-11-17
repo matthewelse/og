@@ -178,12 +178,9 @@ module Make (Data : S) = struct
     let indexes t haystack ~f =
       if length t.pattern = 0
       then
-        if length haystack = 0
-        then f 0
-        else
-          for i = 0 to length haystack - 1 do
-            f i
-          done
+        for i = 0 to length haystack do
+          f i
+        done
       else (
         let local_ q = ref 0 in
         for i = 0 to length haystack - 1 do
@@ -248,12 +245,9 @@ module Make (Data : S) = struct
     let indexes t haystack ~f =
       if length t.pattern = 0
       then
-        if length haystack = 0
-        then f 0
-        else
-          for i = 0 to length haystack - 1 do
-            f i
-          done
+        for i = 0 to length haystack do
+          f i
+        done
       else indexes_from t haystack ~f ~offset:0
     ;;
 
