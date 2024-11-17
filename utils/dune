@@ -2,7 +2,7 @@
  (name og_utils)
  (inline_tests)
  (preprocess
-  (pps ppx_jane))
+  (pps ppx_jane ppx_template))
  (libraries
   core
   core_unix

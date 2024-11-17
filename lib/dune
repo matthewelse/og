@@ -8,5 +8,5 @@
   )
  (inline_tests)
  (preprocess
-  (pps ppx_jane))
+  (pps ppx_jane ppx_template))
  (ocamlopt_flags :standard -O3 -g))

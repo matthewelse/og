@@ -8,11 +8,10 @@ let bit_ix c = Char.to_int c lsr 2
 let bit c = Int64_u.shift_left #1L (bit_ix c)
 
 let of_list cs =
-  let arr = [| #0L; #0L; #0L; #0L |] in
-  List.iter cs ~f:(fun c ->
-    let ix = array_ix c in
-    Array.unsafe_set arr ix (Int64_u.logor (bit c) (Array.unsafe_get arr ix)));
-  Iarray.unsafe_of_array arr
+  Iarray.construct__bits64 ~len:4 ~default:#0L ~f:(fun arr ->
+    List.iter cs ~f:(fun c ->
+      let ix = array_ix c in
+      Array.unsafe_set arr ix (Int64_u.logor (bit c) (Array.unsafe_get arr ix))) [@nontail])
 ;;
 
 let mem t c =

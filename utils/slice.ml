@@ -161,10 +161,12 @@ module Make (Data : S) = struct
     let pattern t = t.pattern
 
     let create pattern =
-      let offsets = Array.init 256 ~f:(fun _ -> length pattern) in
-      iteri pattern ~f:(fun i c ->
-        if i <> length pattern - 1 then offsets.(Char.to_int c) <- length pattern - i - 1);
-      let offsets = Iarray.unsafe_of_array offsets in
+      let offsets =
+        Iarray.construct ~len:256 ~default:(length pattern) ~f:(fun offsets ->
+          iteri pattern ~f:(fun i c ->
+            if i <> length pattern - 1
+            then offsets.(Char.to_int c) <- length pattern - i - 1) [@nontail])
+      in
       { pattern; offsets }
     ;;
 
