@@ -41,6 +41,7 @@ module type S = sig
   val memchr : t @ local -> char -> int option @ local
   val to_string : t @ local -> string
   val print_endline : t @ local -> unit
+  val iter : t @ local -> f:(char -> unit) @ local -> unit
 
   module Expert : sig
     val bytes : t @ local -> data

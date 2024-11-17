@@ -80,6 +80,12 @@ module Make (Data : S) = struct
 
   let unsafe_at (local_ t) ix = Data.unsafe_get t.bytes (t.pos + ix)
 
+  let iter t ~f =
+    for i = 0 to t.len - 1 do
+      f (Data.unsafe_get t.bytes (i + t.pos))
+    done
+  ;;
+
   let iteri t ~f =
     for i = 0 to t.len - 1 do
       f i (Data.unsafe_get t.bytes (i + t.pos))

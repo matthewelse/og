@@ -1,11 +1,19 @@
 (library
  (name og)
- (libraries core core_unix stdlib_stable stdlib_upstream_compatible)
+ (libraries
+  core
+  core_unix
+  core_unix.sys_unix
+  dune-glob
+  stdlib_stable
+  stdlib_upstream_compatible
+  ;;
+  )
  (inline_tests)
  (preprocess
   (pps ppx_jane))
- (ocamlopt_flags :standard -O3)
+ (ocamlopt_flags :standard -O3 -g)
  (foreign_stubs
   (language c)
-  (flags :standard -Wall -pedantic -O3)
+  (flags :standard -Wall -pedantic -O3 -g)
   (names slice_stubs)))
