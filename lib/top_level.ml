@@ -30,12 +30,15 @@ module Source = struct
         "<stdin>"
         (Buffered_reader.stdin ~initial_size:buffer_size ~max_size:max_buffer_size ())
     | Files_recursively_under dir ->
-      let rec loop dir =
+      let q = Queue.create () in
+      Queue.enqueue q dir;
+      while not (Queue.is_empty q) do
+        let dir = Queue.dequeue_exn q in
         let entries = Sys_unix.readdir dir in
         Array.iter entries ~f:(fun entry ->
           let path = dir ^/ entry in
           match Sys_unix.is_directory path with
-          | `Yes -> if should_ignore path then () else loop path
+          | `Yes -> if should_ignore path then () else Queue.enqueue q path
           | `Unknown -> eprint_s [%message "unknown file type" (path : string)]
           | `No ->
             let fd = Core_unix.openfile path ~mode:[ O_RDONLY ] ~perm:0o644 in
@@ -44,8 +47,7 @@ module Source = struct
             in
             if not (is_binary reader) then f path reader;
             Core_unix.close fd)
-      in
-      loop dir
+      done
   ;;
 end
 

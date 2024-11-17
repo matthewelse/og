@@ -176,7 +176,10 @@ let compile (re : Regex0.t) =
 ;;
 
 let unsafe_get_state (t : t) state = Iarray.unsafe_get t.nfa (State.to_int state)
-let find_or_add_dstate t dstate = Hashtbl.find_or_add t.cache dstate ~default:DNode.create
+
+let find_or_add_dstate t dstate =
+  Hashtbl.find_or_add t.cache dstate ~default:(fun () -> Charmap.create None)
+;;
 
 let rec add_state t next_state acc ~generation ~state_generations =
   if state_generations.(State.to_int next_state) = !generation
@@ -191,7 +194,7 @@ let rec add_state t next_state acc ~generation ~state_generations =
 ;;
 
 let rec eval_inner t (local_ input) ~offset ~dstate ~generation ~state_generations =
-  let open DNode in
+  let open Charmap in
   generation := !generation + 1;
   let dnode = find_or_add_dstate t dstate in
   (DState.mem dstate t.accepting_state
