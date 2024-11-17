@@ -61,7 +61,7 @@ let build ~flags (f : Builder.t @ local -> State.t) =
   let builder = Builder.create () in
   let accepting_state = f builder in
   let%tydi { states; _ } = builder in
-  let states = Iarray.unsafe_of_array (Dynarray.to_array states) in
+  let states = Dynarray.to_iarray states in
   { nodes = states; accepting_state; flags }
 ;;
 

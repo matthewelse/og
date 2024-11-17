@@ -68,33 +68,9 @@ end = struct
   let mem t state = Bitset.mem t (State.to_int state)
 end
 
-module DNode : sig
-  type t [@@deriving sexp_of]
-
-  val create : unit -> t
-  val ( .:() ) : t -> Char.t -> DState.t option
-  val ( .:()<- ) : t -> Char.t -> DState.t option -> unit
-end = struct
-  type t = DState.t option array [@@deriving sexp_of]
-
-  let length = 256
-  let char_ix c = Char.to_int c
-  let create () = Array.create ~len:length None
-
-  let[@inline] ( .:() ) t c =
-    (* SAFETY: [0 <= char_ix c < 256] *)
-    Array.unsafe_get t (char_ix c)
-  ;;
-
-  let[@inline] ( .:()<- ) t c val_ =
-    (* SAFETY: [0 <= char_ix c < 256] *)
-    Array.unsafe_set t (char_ix c) val_
-  ;;
-end
-
 type t =
   { nfa : Node.t iarray
-  ; cache : DNode.t DState.Table.t
+  ; cache : DState.t option Charmap.t DState.Table.t
   ; accepting_state : State.t
   ; flags : Flags.t
   ; look_for_constant : Slice.Search_pattern.t option

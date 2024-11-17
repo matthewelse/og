@@ -1,6 +1,7 @@
 module Array = Array
 module Bitset = Bitset
 module Buffered_reader = Buffered_reader
+module Charmap = Charmap
 module Dynarray = Dynarray
 module Iarray = Iarray
 module Int64_u = Stdlib_upstream_compatible.Int64_u

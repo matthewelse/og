@@ -142,7 +142,7 @@ module Make (Data : S) = struct
 
   let memcmp =
     (* Empirically, the OCaml implementations are ~identical, but the C stub is
-     ~500ms faster at churning through the Linux kernel. *)
+       ~500ms faster at churning through the Linux kernel. *)
     match impl with
     | `c_stub -> memcmp_fast
     | `ocaml_iter -> memcmp_iter

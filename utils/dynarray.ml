@@ -10,3 +10,7 @@ let resize t n ~default =
       add_last t (default ())
     done
 ;;
+
+let to_iarray t =
+  if length t = 0 then [::] else Iarray.init (length t) ~f:(fun i -> get t i)
+;;
