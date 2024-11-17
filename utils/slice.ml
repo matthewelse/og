@@ -149,7 +149,66 @@ module Make (Data : S) = struct
     | `ocaml_rec -> memcmp_rec
   ;;
 
-  module Search_pattern = struct
+  module KMP = struct
+    type slice = t [@@deriving sexp_of]
+
+    type t =
+      { pattern : slice
+      ; offsets : (int Iarray.t[@sexp.opaque])
+      }
+    [@@deriving sexp_of]
+
+    let pattern t = t.pattern
+
+    let create pattern =
+      let offsets =
+        Iarray.construct ~len:(length pattern) ~default:0 ~f:(fun offsets ->
+          let local_ k = ref 0 in
+          for i = 1 to length pattern - 1 do
+            while !k > 0 && not (Char.equal (at_exn pattern !k) (at_exn pattern i)) do
+              k := offsets.(!k - 1)
+            done;
+            if Char.equal (at_exn pattern !k) (at_exn pattern i) then incr k;
+            offsets.(i) <- !k
+          done)
+      in
+      { pattern; offsets }
+    ;;
+
+    let indexes t haystack ~f =
+      if length t.pattern = 0
+      then
+        if length haystack = 0
+        then f 0
+        else
+          for i = 0 to length haystack - 1 do
+            f i
+          done
+      else (
+        let local_ q = ref 0 in
+        for i = 0 to length haystack - 1 do
+          while !q > 0 && not (Char.equal (at_exn t.pattern !q) (at_exn haystack i)) do
+            q := Iarray.get t.offsets (!q - 1)
+          done;
+          if Char.equal (at_exn t.pattern !q) (at_exn haystack i) then incr q;
+          if !q = length t.pattern
+          then (
+            f (i - length t.pattern + 1);
+            q := Iarray.get t.offsets (!q - 1))
+        done)
+    ;;
+
+    let index t haystack =
+      let result =
+        With_return.with_return (fun { return } ->
+          indexes t haystack ~f:return;
+          -1)
+      in
+      if result = -1 then None else exclave_ Some result
+    ;;
+  end
+
+  module BMH = struct
     type slice = t [@@deriving sexp_of]
 
     type t =
@@ -179,7 +238,6 @@ module Make (Data : S) = struct
       | Some haystack_slice ->
         if memcmp haystack_slice t.pattern then f offset;
         let last_character_of_haystack_slice =
-          (* FIXME melse: what if [pattern] has length zero? *)
           (* SAFETY: [haystack_slice] has length [t.pattern.len] *)
           unsafe_at haystack_slice (t.pattern.len - 1)
         in
@@ -187,7 +245,17 @@ module Make (Data : S) = struct
         indexes_from t haystack ~f ~offset
     ;;
 
-    let indexes t haystack ~f = indexes_from t haystack ~f ~offset:0
+    let indexes t haystack ~f =
+      if length t.pattern = 0
+      then
+        if length haystack = 0
+        then f 0
+        else
+          for i = 0 to length haystack - 1 do
+            f i
+          done
+      else indexes_from t haystack ~f ~offset:0
+    ;;
 
     let index t haystack =
       let result =
@@ -198,6 +266,8 @@ module Make (Data : S) = struct
       if result = -1 then None else exclave_ Some result
     ;;
   end
+
+  module Search_pattern = BMH
 end
 
 module Bytes = struct

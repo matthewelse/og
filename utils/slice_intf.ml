@@ -1,5 +1,15 @@
 open! Core
 
+module type Search = sig
+  type slice
+  type t [@@deriving sexp_of]
+
+  val create : slice -> t
+  val index : t -> slice @ local -> int option @ local
+  val indexes : t -> slice @ local -> f:(int -> unit) @ local -> unit
+  val pattern : t @ local -> slice @ local
+end
+
 module type S = sig
   type data
 
@@ -49,20 +59,9 @@ module type S = sig
     val len : t @ local -> int
   end
 
-  module Search_pattern : sig
-    type slice := t
-
-    type t = private
-      { pattern : slice
-      ; offsets : int iarray
-      }
-    [@@deriving sexp_of]
-
-    val create : slice -> t
-    val index : t -> slice @ local -> int option @ local
-    val indexes : t -> slice @ local -> f:(int -> unit) @ local -> unit
-    val pattern : t @ local -> slice @ local
-  end
+  module BMH : Search with type slice := t
+  module KMP : Search with type slice := t
+  module Search_pattern : Search with type slice := t
 end
 
 module type Slice = sig

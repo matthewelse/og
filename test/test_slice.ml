@@ -77,24 +77,12 @@ let%expect_test "test string matching (string length 0)" =
     if !prev_index = index then failwith "repeated an index.";
     prev_index := index;
     print_s [%message (index : int)]);
-  [%expect.unreachable]
-[@@expect.uncaught_exn
-  {|
-  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
-     This is strongly discouraged as backtraces are fragile.
-     Please change this test to not include a backtrace. *)
-  (Failure "repeated an index.")
-  Raised at Stdlib.failwith in file "stdlib.ml" (inlined), line 35, characters 17-33
-  Called from Test_og__Test_slice.(fun) in file "test/test_slice.ml", line 77, characters 32-61
-  Called from Og_utils__Slice.Make.Search_pattern.indexes_from in file "utils/slice.ml" (inlined), line 180, characters 48-56
-  Called from Og_utils__Slice.Make.Search_pattern.indexes in file "utils/slice.ml", line 190, characters 32-68
-  Called from Test_og__Test_slice.(fun) in file "test/test_slice.ml", lines 76-79, characters 2-199
-  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
-
-  Trailing output
-  ---------------
-  (index 0)
-  |}]
+  [%expect {|
+    (index 0)
+    (index 1)
+    (index 2)
+    (index 3)
+    |}]
 ;;
 
 let%expect_test "quickcheck" =
