@@ -49,31 +49,9 @@ let print_bad_character_table patlen table =
   |> print_s
 ;;
 
-let matches pattern haystack =
-  let _bad_character_table = compute_bad_character_table pattern in
-  With_return.with_return (fun { return } ->
-    let local_ offset = ref (String.length pattern - 1) in
-    while !offset >= 0 && !offset < String.length haystack do
-      let local_ internal_offset = ref 0 in
-      while !internal_offset < String.length pattern do
-        let pattern_char = pattern.[String.length pattern - 1 - !internal_offset] in
-        let haystack_char = haystack.[!offset] in
-        if Char.equal pattern_char haystack_char
-        then incr internal_offset
-        else (
-          print_endline
-            [%string "%{pattern_char#Char} does not match %{haystack_char#Char}"];
-          return ())
-      done;
-      ()
-    done)
-;;
-
 let%expect_test _ =
   print_bad_character_table (String.length pattern) (compute_bad_character_table pattern);
-  [%expect {| ((A 4) (E 0) (L 1) (M 3) (P 2) (X 5)) |}];
-  matches pattern haystack;
-  [%expect {| E does not match S |}]
+  [%expect {| ((A 4) (E 0) (L 1) (M 3) (P 2) (X 5)) |}]
 ;;
 
 let at s i = if i < 0 || i >= String.length s then None else Some s.[i]
@@ -101,4 +79,65 @@ let%expect_test "compute delta2" =
   done;
   print_s [%message (delta_2 : int array)];
   [%expect {| (delta_2 (17 16 15 14 13 12 7 10 1)) |}]
+;;
+
+let compute_bad_suffix_table pattern =
+  let delta_2 = Array.create ~len:(String.length pattern) 0 in
+  for suffix_length = 0 to String.length pattern - 1 do
+    With_return.with_return (fun { return } ->
+      for offset = 1 to String.length pattern do
+        (* TODO: make this comprehensible *)
+        let suffix = String.suffix pattern suffix_length in
+        let prefix = String.prefix pattern (String.length pattern - offset) in
+        let prefix_suffix = String.suffix prefix suffix_length in
+        if String.is_suffix ~suffix:prefix_suffix suffix
+           && not
+                ([%compare.equal: char option]
+                   (at pattern (String.length pattern - 1 - suffix_length))
+                   (at pattern (String.length pattern - 1 - suffix_length - offset)))
+        then (
+          delta_2.(String.length pattern - 1 - suffix_length) <- suffix_length + offset;
+          return ())
+      done)
+  done;
+  delta_2
+;;
+
+let%expect_test "compute delta2" =
+  let pattern = "mississi" in
+  let delta_2 = compute_bad_suffix_table pattern in
+  print_s [%message (delta_2 : int array)];
+  [%expect {| (delta_2 (15 14 13 7 11 10 7 1)) |}]
+;;
+
+let does_match pattern haystack =
+  let bad_character_table = compute_bad_character_table pattern in
+  let bad_suffix_table = compute_bad_suffix_table pattern in
+  With_return.with_return (fun { return } ->
+    let local_ offset = ref (String.length pattern - 1) in
+    while !offset >= 0 && !offset < String.length haystack do
+      let local_ pattern_offset = ref (String.length pattern - 1) in
+      while
+        !pattern_offset >= 0 && Char.equal pattern.[!pattern_offset] haystack.[!offset]
+      do
+        (* Search right to left through the pattern/haystack *)
+        decr pattern_offset;
+        decr offset
+      done;
+      if !pattern_offset < 0 then return true;
+      offset
+      := max
+           bad_character_table.(Char.to_int haystack.[!offset])
+           bad_suffix_table.(!pattern_offset)
+    done;
+    false)
+;;
+
+let%expect_test "asdf" =
+  let test pattern haystack =
+    let result = does_match pattern haystack in
+    print_s [%message (result : bool)]
+  in
+  test "ABC" "ABCXXXABX";
+  [%expect {| (result true) |}]
 ;;

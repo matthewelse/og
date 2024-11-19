@@ -14,7 +14,8 @@ let%expect_test "test conversion to nfa" =
      (nfa
       ((nodes
         (((((Literal
-             ((pattern ((bytes abc) (pos 0) (len 3))) (offsets <opaque>))))
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes abc) (pos 0) (len 3))))))
            1))))
        (accepting_state 1) (flags ()))))
     ((impl Nfa_hybrid)
@@ -22,7 +23,8 @@ let%expect_test "test conversion to nfa" =
       ((nfa ((Match (a) 1) (Match (b) 2) (Match (c) 3) Accept)) (cache ())
        (accepting_state 3) (flags ())
        (look_for_constant
-        (((pattern ((bytes abc) (pos 0) (len 3))) (offsets <opaque>)))))))
+        (((bad_character <opaque>) (bad_suffix <opaque>)
+          (pattern ((bytes abc) (pos 0) (len 3)))))))))
     |}];
   test "a|bc";
   [%expect
@@ -30,9 +32,13 @@ let%expect_test "test conversion to nfa" =
     ((impl Nfa_backtrack)
      (nfa
       ((nodes
-        (((((Literal ((pattern ((bytes a) (pos 0) (len 1))) (offsets <opaque>))))
+        (((((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes a) (pos 0) (len 1))))))
            1)
-          (((Literal ((pattern ((bytes bc) (pos 0) (len 2))) (offsets <opaque>))))
+          (((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes bc) (pos 0) (len 2))))))
            2))
          () ((() 1))))
        (accepting_state 1) (flags ()))))
@@ -117,10 +123,14 @@ let%expect_test "test conversion to nfa" =
     ((impl Nfa_backtrack)
      (nfa
       ((nodes
-        (((((Literal ((pattern ((bytes a) (pos 0) (len 1))) (offsets <opaque>))))
+        (((((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes a) (pos 0) (len 1))))))
            1)
           (() 1))
-         ((((Literal ((pattern ((bytes bc) (pos 0) (len 2))) (offsets <opaque>))))
+         ((((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes bc) (pos 0) (len 2))))))
            2))))
        (accepting_state 2) (flags ()))))
     ((impl Nfa_hybrid)
@@ -128,7 +138,8 @@ let%expect_test "test conversion to nfa" =
       ((nfa ((Split 1 2) (Match (a) 2) (Match (b) 3) (Match (c) 4) Accept))
        (cache ()) (accepting_state 4) (flags ())
        (look_for_constant
-        (((pattern ((bytes bc) (pos 0) (len 2))) (offsets <opaque>)))))))
+        (((bad_character <opaque>) (bad_suffix <opaque>)
+          (pattern ((bytes bc) (pos 0) (len 2)))))))))
     |}];
   test "a+bc";
   [%expect
@@ -136,10 +147,14 @@ let%expect_test "test conversion to nfa" =
     ((impl Nfa_backtrack)
      (nfa
       ((nodes
-        (((((Literal ((pattern ((bytes a) (pos 0) (len 1))) (offsets <opaque>))))
+        (((((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes a) (pos 0) (len 1))))))
            1))
          ((() 0)
-          (((Literal ((pattern ((bytes bc) (pos 0) (len 2))) (offsets <opaque>))))
+          (((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes bc) (pos 0) (len 2))))))
            2))))
        (accepting_state 2) (flags ()))))
     ((impl Nfa_hybrid)
@@ -147,7 +162,8 @@ let%expect_test "test conversion to nfa" =
       ((nfa ((Match (a) 1) (Split 2 0) (Match (b) 3) (Match (c) 4) Accept))
        (cache ()) (accepting_state 4) (flags ())
        (look_for_constant
-        (((pattern ((bytes bc) (pos 0) (len 2))) (offsets <opaque>)))))))
+        (((bad_character <opaque>) (bad_suffix <opaque>)
+          (pattern ((bytes bc) (pos 0) (len 2)))))))))
     |}];
   test "(abc)+";
   [%expect
@@ -156,7 +172,8 @@ let%expect_test "test conversion to nfa" =
      (nfa
       ((nodes
         (((((Literal
-             ((pattern ((bytes abc) (pos 0) (len 3))) (offsets <opaque>))))
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes abc) (pos 0) (len 3))))))
            1))
          ((() 0))))
        (accepting_state 1) (flags ()))))
@@ -172,7 +189,8 @@ let%expect_test "test conversion to nfa" =
      (nfa
       ((nodes
         (((((Literal
-             ((pattern ((bytes abc) (pos 0) (len 3))) (offsets <opaque>))))
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes abc) (pos 0) (len 3))))))
            1))))
        (accepting_state 1) (flags (Require_sol Require_eol)))))
     ((impl Nfa_hybrid)
@@ -180,7 +198,8 @@ let%expect_test "test conversion to nfa" =
       ((nfa ((Match (a) 1) (Match (b) 2) (Match (c) 3) Accept)) (cache ())
        (accepting_state 3) (flags (Require_sol Require_eol))
        (look_for_constant
-        (((pattern ((bytes abc) (pos 0) (len 3))) (offsets <opaque>)))))))
+        (((bad_character <opaque>) (bad_suffix <opaque>)
+          (pattern ((bytes abc) (pos 0) (len 3)))))))))
     |}];
   test "^#?i?n?c?l?u?d?e?";
   [%expect
@@ -188,28 +207,44 @@ let%expect_test "test conversion to nfa" =
     ((impl Nfa_backtrack)
      (nfa
       ((nodes
-        (((((Literal ((pattern ((bytes #) (pos 0) (len 1))) (offsets <opaque>))))
+        (((((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes #) (pos 0) (len 1))))))
            1)
           (() 1))
-         ((((Literal ((pattern ((bytes i) (pos 0) (len 1))) (offsets <opaque>))))
+         ((((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes i) (pos 0) (len 1))))))
            2)
           (() 2))
-         ((((Literal ((pattern ((bytes n) (pos 0) (len 1))) (offsets <opaque>))))
+         ((((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes n) (pos 0) (len 1))))))
            3)
           (() 3))
-         ((((Literal ((pattern ((bytes c) (pos 0) (len 1))) (offsets <opaque>))))
+         ((((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes c) (pos 0) (len 1))))))
            4)
           (() 4))
-         ((((Literal ((pattern ((bytes l) (pos 0) (len 1))) (offsets <opaque>))))
+         ((((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes l) (pos 0) (len 1))))))
            5)
           (() 5))
-         ((((Literal ((pattern ((bytes u) (pos 0) (len 1))) (offsets <opaque>))))
+         ((((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes u) (pos 0) (len 1))))))
            6)
           (() 6))
-         ((((Literal ((pattern ((bytes d) (pos 0) (len 1))) (offsets <opaque>))))
+         ((((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes d) (pos 0) (len 1))))))
            7)
           (() 7))
-         ((((Literal ((pattern ((bytes e) (pos 0) (len 1))) (offsets <opaque>))))
+         ((((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes e) (pos 0) (len 1))))))
            8)
           (() 8))))
        (accepting_state 8) (flags (Require_sol)))))

@@ -60,6 +60,7 @@ module type S = sig
   end
 
   module BMH : Search with type slice := t
+  module Boyer_moore : Search with type slice := t
   module KMP : Search with type slice := t
   module Search_pattern : Search with type slice := t
 end

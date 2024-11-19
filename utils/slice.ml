@@ -261,7 +261,106 @@ module Make (Data : S) = struct
     ;;
   end
 
-  module Search_pattern = BMH
+  module Boyer_moore = struct
+    type slice = t [@@deriving sexp_of]
+
+    type t =
+      { bad_character : (int Iarray.t[@sexp.opaque])
+      ; bad_suffix : (int Iarray.t[@sexp.opaque])
+      ; pattern : slice
+      }
+    [@@deriving fields ~getters, sexp_of]
+
+    let compute_bad_suffix_table pattern =
+      (* TODO: make this more efficient and comprehensible *)
+      let pattern = to_string pattern in
+      Iarray.construct ~len:(String.length pattern) ~default:0 ~f:(fun table ->
+        let at s i = if i < 0 || i >= String.length s then None else Some s.[i] in
+        for suffix_length = 0 to String.length pattern - 1 do
+          With_return.with_return (fun { return } ->
+            for offset = 1 to String.length pattern do
+              let suffix = String.suffix pattern suffix_length in
+              let prefix = String.prefix pattern (String.length pattern - offset) in
+              let prefix_suffix = String.suffix prefix suffix_length in
+              if String.is_suffix ~suffix:prefix_suffix suffix
+                 && not
+                      (Option.equal__local
+                         Char.equal__local
+                         (at pattern (String.length pattern - 1 - suffix_length))
+                         (at pattern (String.length pattern - 1 - suffix_length - offset)))
+              then (
+                table.(String.length pattern - 1 - suffix_length)
+                <- suffix_length + offset;
+                return ())
+            done)
+        done)
+    ;;
+
+    let compute_bad_character_table pattern =
+      let pattern = to_string pattern in
+      Iarray.construct
+        ~len:256
+        ~default:(String.length pattern)
+        ~f:(fun bad_character_table ->
+          for i = 0 to String.length pattern - 1 do
+            bad_character_table.(Char.to_int pattern.[i]) <- String.length pattern - 1 - i
+          done)
+    ;;
+
+    let create pattern =
+      let bad_suffix = compute_bad_suffix_table pattern in
+      let bad_character = compute_bad_character_table pattern in
+      { bad_suffix; bad_character; pattern }
+    ;;
+
+    let indexes t haystack ~f =
+      if length t.pattern = 0
+      then
+        for i = 0 to length haystack do
+          f i
+        done
+      else (
+        let local_ offset = ref (length t.pattern - 1) in
+        while !offset >= 0 && !offset < length haystack do
+          let local_ pattern_offset = ref (length t.pattern - 1) in
+          while
+            !pattern_offset >= 0
+            && Char.equal
+                 (unsafe_at t.pattern !pattern_offset)
+                 (unsafe_at haystack !offset)
+          do
+            (* Search right to left through the pattern/haystack *)
+            decr pattern_offset;
+            decr offset
+          done;
+          if !pattern_offset < 0
+          then (
+            f (!offset + 1);
+            (* FIXME: there is a jump we can do here, I'm just not sure what it is. *)
+            (* Advance by one if we have a successful match *)
+            offset := !offset + length t.pattern + 1)
+          else
+            offset
+            := !offset
+               + max
+                   (Iarray.unsafe_get
+                      t.bad_character
+                      (Char.to_int (unsafe_at haystack !offset)))
+                   (Iarray.unsafe_get t.bad_suffix !pattern_offset)
+        done)
+    ;;
+
+    let index t haystack =
+      let result =
+        With_return.with_return (fun { return } ->
+          indexes t haystack ~f:return;
+          -1)
+      in
+      if result = -1 then None else exclave_ Some result
+    ;;
+  end
+
+  module Search_pattern = Boyer_moore
 end
 
 module Bytes = struct
