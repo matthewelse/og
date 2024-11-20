@@ -6,6 +6,7 @@ module type S = sig
   val sub_string : (t, string) Blit.sub_global
   val length : t -> int
   val unsafe_get : t -> int -> char
+  val unsafe_get_u64 : t -> int -> int64#
   val unsafe_to_string : t -> string
 end
 
@@ -110,13 +111,53 @@ module Make (Data : S) = struct
 
   external memchr_fast : t @ local -> char -> int = "slice_memchr" [@@noalloc]
 
-  let memchr t c =
+  let memchr_ocaml t c =
+    (* Adapted from https://bits.stephan-brumme.com/null.html *)
+    let local_ result = ref (-1) in
+    let local_ offset = ref 0 in
+    let `fast_path =
+      let mask_lo = #0x0101010101010101L in
+      let mask_hi = #0x8080808080808080L in
+      let mask_c = Int64_u.splat c in
+      while !result = -1 && !offset + 8 <= length t do
+        let bytes = Data.unsafe_get_u64 t.bytes (t.pos + !offset) in
+        let with_c_zeros = Int64_u.O.(bytes lxor mask_c) in
+        let res =
+          Int64_u.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi)
+        in
+        if Int64_u.O.(res <> #0L)
+        then (
+          let byte_offset = Int64_u.ctz res lsr 3 in
+          result := !offset + byte_offset);
+        offset := !offset + 8
+      done;
+      `fast_path
+    in
+    let `slow_path =
+      while !result = -1 && !offset < length t do
+        if Char.equal (unsafe_at t !offset) c then result := !offset else incr offset
+      done;
+      `slow_path
+    in
+    let result = !result in
+    if result = -1 then None else exclave_ Some result
+  ;;
+
+  let memchr_fast t c =
     match memchr_fast t c with
     | -1 -> None
     | i -> exclave_ Some i
   ;;
 
-  let impl = `c_stub
+  let memchr_impl = `ocaml
+
+  let memchr =
+    match memchr_impl with
+    | `c_stub -> memchr_fast
+    | `ocaml -> memchr_ocaml
+  ;;
+
+  let memcmp_impl = `c_stub
 
   external memcmp_fast : t @ local -> t @ local -> bool = "slice_memcmp" [@@noalloc]
 
@@ -143,7 +184,7 @@ module Make (Data : S) = struct
   let memcmp =
     (* Empirically, the OCaml implementations are ~identical, but the C stub is
        ~500ms faster at churning through the Linux kernel. *)
-    match impl with
+    match memcmp_impl with
     | `c_stub -> memcmp_fast
     | `ocaml_iter -> memcmp_iter
     | `ocaml_rec -> memcmp_rec
@@ -372,6 +413,10 @@ module Bytes = struct
       let unsafe_to_string t =
         Bytes.unsafe_to_string ~no_mutation_while_string_reachable:t
       ;;
+
+      let unsafe_get_u64 t n =
+        Bytes.unsafe_get_int64 t n |> Stdlib_upstream_compatible.Int64_u.of_int64
+      ;;
     end)
 
   let unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len =
@@ -399,6 +444,30 @@ module String = Make (struct
 
     let sub_string = sub
     let unsafe_to_string t = t
+
+    external unsafe_get_u64 : (t[@local_opt]) -> int -> int64 = "%caml_bytes_get64u"
+
+    let unsafe_get_u64 t n =
+      unsafe_get_u64 t n |> Stdlib_upstream_compatible.Int64_u.of_int64
+    ;;
   end)
 
 include String
+
+let%expect_test "test memchr_ocaml" =
+  let haystack = create "7WOS SlX\151Vbj8RhBpDDV\209W9R" in
+  let ocaml_result = memchr_ocaml haystack 'D' |> [%globalize: int option] in
+  print_s [%message (ocaml_result : int option)];
+  [%expect {| (ocaml_result (17)) |}]
+;;
+
+let%expect_test "test memchr_ocaml" =
+  Quickcheck.test
+    [%quickcheck.generator: string * char]
+    ~sexp_of:[%sexp_of: string * char]
+    ~f:(fun (haystack, needle) ->
+      let haystack = create haystack in
+      let c_result = memchr_fast haystack needle |> [%globalize: int option] in
+      let ocaml_result = memchr_ocaml haystack needle |> [%globalize: int option] in
+      assert ([%compare.equal: int option] c_result ocaml_result))
+;;
