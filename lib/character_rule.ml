@@ -8,23 +8,23 @@ type t =
   | Literal of global_ Slice.Search_pattern.t
 [@@deriving sexp_of]
 
-let matches t ~input ~offset =
+let matches t ~input ~offset : I64.Option.t =
   match t with
   | Class character_class ->
     (match Slice.at input offset with
      | None -> None
-     | Some c -> if Character_class.matches character_class c then Some 1 else None)
+     | Some c -> if Character_class.matches character_class c then Some #1L else None)
   | One_of chars ->
     (match Slice.at input offset with
      | None -> None
      | Some c ->
-       if Iarray.exists_local chars ~f:(fun c' -> Char.equal c c') then Some 1 else None)
+       if Iarray.exists_local chars ~f:(fun c' -> Char.equal c c') then Some #1L else None)
   | Not_one_of chars ->
     (match Slice.at input offset with
      | None -> None
      | Some c ->
        if not (Iarray.exists_local chars ~f:(fun c' -> Char.equal c c'))
-       then Some 1
+       then Some #1L
        else None)
   | Literal l ->
     let substring = Slice.Search_pattern.pattern l in

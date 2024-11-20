@@ -170,7 +170,7 @@ let compile (re : Regex0.t) =
     ~flags:re.flags
     ~look_for_constant:
       (Option.map
-         ~f:(fun str -> Slice.Search_pattern.create (Slice.create str))
+         ~f:(fun str -> Slice.Search_pattern.create (Slice.of_string str))
          (Regex0.best_constant re))
     (fun builder -> aux builder re.re ~initial_state:(Builder.fresh_state builder))
 ;;
@@ -196,6 +196,7 @@ let rec add_state t next_state acc ~generation ~state_generations =
 let rec eval_inner t (local_ input) ~offset ~dstate ~generation ~state_generations =
   let open Charmap in
   generation := !generation + 1;
+  let open I64.O in
   let dnode = find_or_add_dstate t dstate in
   (DState.mem dstate t.accepting_state
    && ((not (Flags.mem t.flags Require_eol)) || offset = Slice.length input))
@@ -223,14 +224,14 @@ let rec eval_inner t (local_ input) ~offset ~dstate ~generation ~state_generatio
         dnode.:(c) <- Some dstate';
         dstate'
     in
-    eval_inner t input ~offset:(offset + 1) ~dstate ~generation ~state_generations
+    eval_inner t input ~offset:(offset + #1L) ~dstate ~generation ~state_generations
 ;;
 
 let eval t input =
   let maybe_contains_constant =
     match t.look_for_constant with
     | None -> true
-    | Some pattern -> Slice.Search_pattern.index pattern input |> Option.is_some
+    | Some pattern -> Slice.Search_pattern.index pattern input |> I64.Option.is_some
   in
   let generation = ref 0 in
   let state_generations = Array.create_local ~len:(Iarray.length t.nfa) (-1) in
@@ -238,10 +239,10 @@ let eval t input =
   &&
   let dstate = DState.create (add_state t State.zero [] ~generation ~state_generations) in
   if Flags.mem t.flags Require_sol
-  then eval_inner t input ~offset:0 ~dstate ~generation ~state_generations [@nontail]
+  then eval_inner t input ~offset:#0L ~dstate ~generation ~state_generations [@nontail]
   else
     With_return.with_return (fun { return } ->
-      for offset = 0 to Slice.length input - 1 do
+      for%i64 offset = #0L to Slice.length input - #1L do
         if eval_inner t input ~offset ~dstate ~generation ~state_generations
         then return true
       done;

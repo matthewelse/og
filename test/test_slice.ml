@@ -1,19 +1,24 @@
 open! Core
+open! Import
 module Slice = Og_utils.Slice
 
 let%expect_test "string slices" =
   Quickcheck.test [%quickcheck.generator: string] ~sexp_of:[%sexp_of: string] ~f:(fun s ->
     for pos = 0 to String.length s - 1 do
-      assert (String.equal (String.subo ~pos s) (Slice.create ~pos s |> Slice.to_string))
+      assert (
+        String.equal
+          (String.subo ~pos s)
+          (Slice.create s ~pos:(I64.of_int pos) ~len:(String.length s - pos |> I64.of_int)
+           |> Slice.to_string))
     done)
 ;;
 
 let%expect_test "test string matching" =
-  let pat = Slice.Search_pattern.create (Slice.create ~len:3 "asdf") in
+  let pat = Slice.Search_pattern.create (Slice.create ~pos:#0L ~len:#3L "asdf") in
   let result =
-    Slice.Search_pattern.index pat (Slice.create "asdf") |> [%globalize: int option]
+    Slice.Search_pattern.index pat (Slice.of_string "asdf") |> I64.Option.box
   in
-  print_s [%message (result : int option)];
+  print_s [%message (result : int64 option)];
   [%expect {| (result (0)) |}]
 ;;
 
@@ -21,13 +26,13 @@ let%expect_test "test memchr" =
   let test ?offset input chr =
     let pos = Option.value ~default:0 offset in
     let slice =
-      Slice.create input |> Slice.slice_exn ~pos ~len:(String.length input - pos)
+      Slice.of_string input
+      |> Slice.slice_exn
+           ~pos:(I64.of_int pos)
+           ~len:(String.length input - pos |> I64.of_int)
     in
     print_endline [%string "slice: %{Slice.to_string slice}"];
-    Slice.memchr slice chr
-    |> [%globalize: int option]
-    |> [%sexp_of: int option]
-    |> print_s
+    Slice.memchr slice chr |> I64.Option.box |> [%sexp_of: int64 option] |> print_s
   in
   test "asdf\r\n" '\n';
   [%expect {|
@@ -71,12 +76,12 @@ let%expect_test "test memchr" =
 ;;
 
 let%expect_test "test string matching (string length 0)" =
-  let pat = Slice.Search_pattern.create (Slice.create "") in
+  let pat = Slice.Search_pattern.create (Slice.of_string "") in
   let prev_index = ref (-1) in
-  Slice.Search_pattern.indexes pat (Slice.create "asdf") ~f:(fun index ->
-    if !prev_index = index then failwith "repeated an index.";
-    prev_index := index;
-    print_s [%message (index : int)]);
+  Slice.Search_pattern.indexes pat (Slice.of_string "asdf") ~f:(fun index ->
+    if !prev_index = I64.to_int_trunc index then failwith "repeated an index.";
+    prev_index := I64.to_int_trunc index;
+    print_s [%message "" ~index:(I64.to_int_trunc index : int)]);
   [%expect
     {|
     (index 0)
@@ -105,9 +110,9 @@ let%expect_test "test string matching (string length 0)" =
 
 let%expect_test "quickcheck" =
   let test_slice ~needle ~haystack =
-    let needle = Slice.Search_pattern.create (Slice.create needle) in
-    [%globalize: int option]
-      (Slice.Search_pattern.index needle (Slice.create_local haystack)) [@nontail]
+    let needle = Slice.Search_pattern.create (Slice.of_string needle) in
+    (I64.Option.box (Slice.Search_pattern.index needle (Slice.of_string haystack))
+     |> Option.map ~f:Int64.to_int_exn) [@nontail]
   in
   let test_string ~needle ~haystack =
     let needle = String.Search_pattern.create needle in

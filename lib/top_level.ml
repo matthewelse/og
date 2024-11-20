@@ -8,7 +8,7 @@ module Source = struct
   [@@deriving sexp_of]
 
   let is_binary reader =
-    (try Buffered_reader.ensure reader 1024 with
+    (try Buffered_reader.ensure reader #1024L with
      | End_of_file -> ());
     let buf = Buffered_reader.peek reader in
     With_return.with_return (fun { return } ->

@@ -78,7 +78,7 @@ let compile (re : Regex0.t) =
         builder
         ~from_state:current_state
         ~to_state:accepting_state
-        (Some (Literal (Slice.Search_pattern.create (Slice.create s))));
+        (Some (Literal (Slice.Search_pattern.create (Slice.of_string s))));
       accepting_state
     | Class c ->
       let accepting_state = Builder.fresh_state builder in

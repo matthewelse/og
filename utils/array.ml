@@ -12,6 +12,9 @@ external unsafe_set
   = "%array_unsafe_set"
 [@@layout_poly] [@@noalloc]
 
+external set : ('a : any). 'a array @ local -> int -> 'a -> unit = "%array_safe_set"
+[@@layout_poly] [@@noalloc]
+
 external create_u64_uninitialized
   : ('a : bits64).
   len:int -> 'a array

@@ -3,4 +3,4 @@
  (libraries core expect_test_helpers_core og)
  (inline_tests)
  (preprocess
-  (pps ppx_jane)))
+  (pps ppx_jane ppx_og)))

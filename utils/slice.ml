@@ -3,10 +3,10 @@ open! Core
 module type S = sig
   type t [@@deriving sexp_of]
 
-  val sub_string : (t, string) Blit.sub_global
-  val length : t -> int
-  val unsafe_get : t -> int -> char
-  val unsafe_get_u64 : t -> int -> int64#
+  val substring : t -> pos:int64# -> len:int64# -> string
+  val length : t -> int64#
+  val unsafe_get : t -> int64# -> char
+  val unsafe_get_u64 : t -> int64# -> int64#
   val unsafe_to_string : t -> string
 end
 
@@ -14,8 +14,8 @@ module Make (Data : S) = struct
   type t =
     { (* If you change this, update the implementation of [slice_stubs.c]. *)
       global_ bytes : Data.t
-    ; pos : int
-    ; len : int
+    ; pos : (I64.t[@globalized])
+    ; len : (I64.t[@globalized])
     }
   [@@deriving globalize, sexp_of]
 
@@ -25,27 +25,28 @@ module Make (Data : S) = struct
     let len t = t.len
   end
 
-  let to_string t = Data.sub_string t.bytes ~pos:t.pos ~len:t.len
+  let to_string t = Data.substring t.bytes ~pos:t.pos ~len:t.len
 
   let print_endline t =
     Out_channel.output_substring
       stdout
       ~buf:(Data.unsafe_to_string t.bytes)
-      ~pos:t.pos
-      ~len:t.len;
+      ~pos:(I64.to_int_trunc t.pos)
+      ~len:(I64.to_int_trunc t.len);
     Out_channel.newline stdout
   ;;
 
   let check_bounds t =
+    let open I64.O in
     if t.pos + t.len > Data.length t.bytes
     then (
       let t = globalize t in
       raise_s [%message "Start index+length out of bounds" (t : t)])
-    else if t.pos < 0
+    else if t.pos < #0L
     then (
       let t = globalize t in
       raise_s [%message "Start position < 0" (t : t)])
-    else if t.len < 0
+    else if t.len < #0L
     then (
       let t = globalize t in
       raise_s [%message "Length < 0" (t : t)])
@@ -54,15 +55,13 @@ module Make (Data : S) = struct
   let unsafe_create bytes ~pos ~len = { bytes; pos; len }
   let unsafe_create_local bytes ~pos ~len = exclave_ { bytes; pos; len }
 
-  let create ?(pos = 0) ?len bytes =
-    let len = Option.value len ~default:(Data.length bytes - pos) in
+  let create bytes ~pos ~len =
     let t = { bytes; pos; len } in
     check_bounds t;
     t
   ;;
 
-  let create_local ?(pos = 0) ?len bytes = exclave_
-    let len = Option.value len ~default:(Data.length bytes - pos) in
+  let create_local bytes ~pos ~len = exclave_
     let local_ t = { bytes; pos; len } in
     check_bounds t;
     t
@@ -71,83 +70,98 @@ module Make (Data : S) = struct
   let length t = t.len
 
   let at_exn (local_ t) ix =
-    if ix >= t.len || ix < 0
+    let open I64.O in
+    if ix >= t.len || ix < #0L
     then failwith "index out of bounds"
     else Data.unsafe_get t.bytes (t.pos + ix)
   ;;
 
   let at (local_ t) ix =
-    if ix >= t.len || ix < 0
+    let open I64.O in
+    if ix >= t.len || ix < #0L
     then None
     else exclave_ Some (Data.unsafe_get t.bytes (t.pos + ix))
   ;;
 
-  let unsafe_at (local_ t) ix = Data.unsafe_get t.bytes (t.pos + ix)
+  let unsafe_at (local_ t) ix =
+    let open I64.O in
+    Data.unsafe_get t.bytes (t.pos + ix)
+  ;;
 
   let iter t ~f =
-    for i = 0 to t.len - 1 do
+    let open I64.O in
+    for%i64 i = #0L to t.len - #1L do
       f (Data.unsafe_get t.bytes (i + t.pos))
     done
   ;;
 
   let iteri t ~f =
-    for i = 0 to t.len - 1 do
+    let open I64.O in
+    for%i64 i = #0L to t.len - #1L do
       f i (Data.unsafe_get t.bytes (i + t.pos))
     done
   ;;
 
   let[@inline always] unsafe_slice t ~pos ~len = exclave_
+    let open I64.O in
     { t with pos = t.pos + pos; len }
   ;;
 
   let slice t ~pos ~len =
-    if pos < 0 || len < 0 || pos + len > t.len
+    let open I64.O in
+    if pos < #0L || len < #0L || pos + len > t.len
     then None
     else exclave_ Some (unsafe_slice ~pos ~len t)
   ;;
 
   let slice_exn t ~pos ~len =
-    if pos < 0 || len < 0 || pos + len > t.len
+    let open I64.O in
+    if pos < #0L || len < #0L || pos + len > t.len
     then failwith "index out of bounds"
     else exclave_ unsafe_slice ~pos ~len t
   ;;
 
   external memchr_fast : t @ local -> char -> int = "slice_memchr" [@@noalloc]
 
-  let memchr_ocaml t c =
+  let memchr_ocaml t c : I64.Option.t =
+    let open I64.O in
     (* Adapted from https://bits.stephan-brumme.com/null.html *)
-    let local_ result = ref (-1) in
-    let local_ offset = ref 0 in
+    let result = I64.Ref.create_local (-#1L) in
+    let offset = I64.Ref.create_local #0L in
     let `fast_path =
       let mask_lo = #0x0101010101010101L in
       let mask_hi = #0x8080808080808080L in
       let mask_c = I64.splat c in
-      while !result = -1 && !offset + 8 <= length t do
-        let bytes = Data.unsafe_get_u64 t.bytes (t.pos + !offset) in
+      while I64.Ref.get result = -#1L && I64.Ref.get offset + #8L <= length t do
+        let bytes = Data.unsafe_get_u64 t.bytes (t.pos + I64.Ref.get offset) in
         let with_c_zeros = I64.O.(bytes lxor mask_c) in
         let res = I64.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi) in
         if I64.O.(res <> #0L)
         then (
           let byte_offset = I64.ctz res lsr 3 in
-          result := !offset + byte_offset);
-        offset := !offset + 8
+          I64.Ref.set result (I64.Ref.get offset + I64.of_int byte_offset));
+        I64.Ref.add offset #8L
       done;
       `fast_path
     in
     let `slow_path =
-      while !result = -1 && !offset < length t do
-        if Char.equal (unsafe_at t !offset) c then result := !offset else incr offset
+      while I64.Ref.get result = -#1L && I64.Ref.get offset < length t do
+        if Char.equal (unsafe_at t (I64.Ref.get offset)) c
+        then I64.Ref.set result (I64.Ref.get offset)
+        else I64.Ref.add offset #1L
       done;
       `slow_path
     in
-    let result = !result in
-    if result = -1 then None else exclave_ Some result
+    let result = I64.Ref.get result in
+    if result = -#1L then None else exclave_ Some result
   ;;
 
-  let memchr_fast t c =
+  let memchr_fast t c : I64.Option.t =
     match memchr_fast t c with
     | -1 -> None
-    | i -> exclave_ Some i
+    | i ->
+      let i = I64.of_int i in
+      exclave_ Some i
   ;;
 
   let memchr_impl = `ocaml
@@ -163,23 +177,25 @@ module Make (Data : S) = struct
   external memcmp_fast : t @ local -> t @ local -> bool = "slice_memcmp" [@@noalloc]
 
   let memcmp_iter (local_ t) (local_ t') =
+    let open I64.O in
     t.len = t'.len
     && (With_return.with_return (fun { return } ->
-          for i = 0 to t.len - 1 do
+          for%i64 i = #0L to t.len - #1L do
             if not (Char.equal (unsafe_at t i) (unsafe_at t' i)) then return false
           done;
           true) [@nontail])
   ;;
 
   let memcmp_rec t t' =
+    let open I64.O in
     let rec aux t t' i =
       if i >= t.len
       then true
       else if not (Char.equal (unsafe_at t i) (unsafe_at t' i))
       then false
-      else aux t t' (i + 1)
+      else aux t t' (i + #1L)
     in
-    t.len = t'.len && aux t t' 0
+    t.len = t'.len && aux t t' #0L
   ;;
 
   let memcmp =
@@ -196,54 +212,60 @@ module Make (Data : S) = struct
 
     type t =
       { pattern : slice
-      ; offsets : (int Iarray.t[@sexp.opaque])
+      ; offsets : (int64# Iarray.t[@sexp.opaque])
       }
     [@@deriving sexp_of]
 
     let pattern t = t.pattern
 
     let create pattern =
+      let open I64.O in
+      let length = I64.to_int_trunc (length pattern) in
       let offsets =
-        Iarray.construct ~len:(length pattern) ~default:0 ~f:(fun offsets ->
-          let local_ k = ref 0 in
-          for i = 1 to length pattern - 1 do
-            while !k > 0 && not (Char.equal (at_exn pattern !k) (at_exn pattern i)) do
-              k := offsets.(!k - 1)
+        Iarray.construct__bits64 ~len:length ~default:#0L ~f:(fun offsets ->
+          let local_ k = I64.Ref.create_local #0L in
+          for i = 1 to Int.(length - 1) do
+            let i = I64.of_int i in
+            while !k > #0L && not (Char.equal (at_exn pattern !k) (at_exn pattern i)) do
+              I64.Ref.set k (I64.Array.get offsets (!k - #1L))
             done;
-            if Char.equal (at_exn pattern !k) (at_exn pattern i) then incr k;
-            offsets.(i) <- !k
+            if Char.equal (at_exn pattern !k) (at_exn pattern i) then I64.Ref.incr k;
+            I64.Array.set offsets i !k
           done)
       in
       { pattern; offsets }
     ;;
 
     let indexes t haystack ~f =
-      if length t.pattern = 0
+      let open I64.O in
+      if length t.pattern = #0L
       then
-        for i = 0 to length haystack do
+        for%i64 i = #0L to length haystack do
           f i
         done
       else (
-        let local_ q = ref 0 in
-        for i = 0 to length haystack - 1 do
-          while !q > 0 && not (Char.equal (at_exn t.pattern !q) (at_exn haystack i)) do
-            q := Iarray.get t.offsets (!q - 1)
+        let local_ q = I64.Ref.create_local #0L in
+        for%i64 i = #0L to length haystack - #1L do
+          while !q > #0L && not (Char.equal (at_exn t.pattern !q) (at_exn haystack i)) do
+            I64.Ref.set q (I64.Iarray.get t.offsets (!q - #1L))
           done;
           if Char.equal (at_exn t.pattern !q) (at_exn haystack i) then incr q;
           if !q = length t.pattern
           then (
-            f (i - length t.pattern + 1);
-            q := Iarray.get t.offsets (!q - 1))
+            f (i - length t.pattern + #1L);
+            I64.Ref.set q (I64.Iarray.get t.offsets (!q - #1L)))
         done)
     ;;
 
-    let index t haystack =
-      let result =
-        With_return.with_return (fun { return } ->
-          indexes t haystack ~f:return;
-          -1)
-      in
-      if result = -1 then None else exclave_ Some result
+    let index t haystack : I64.Option.t =
+      let open I64.O in
+      let result = I64.Ref.create_local (-#1L) in
+      With_return.with_return (fun { return } ->
+        indexes t haystack ~f:(fun pos ->
+          I64.Ref.set result pos;
+          return ()) [@nontail]);
+      let result = !result in
+      if result = -#1L then None else exclave_ Some result
     ;;
   end
 
@@ -252,18 +274,23 @@ module Make (Data : S) = struct
 
     type t =
       { pattern : slice
-      ; offsets : (int Iarray.t[@sexp.opaque])
+      ; offsets : (int64# Iarray.t[@sexp.opaque])
       }
     [@@deriving sexp_of]
 
     let pattern t = t.pattern
 
     let create pattern =
+      let open I64.O in
       let offsets =
-        Iarray.construct ~len:256 ~default:(length pattern) ~f:(fun offsets ->
+        Iarray.construct__bits64 ~len:256 ~default:(length pattern) ~f:(fun offsets ->
           iteri pattern ~f:(fun i c ->
-            if i <> length pattern - 1
-            then offsets.(Char.to_int c) <- length pattern - i - 1) [@nontail])
+            if i <> length pattern - #1L
+            then
+              I64.Array.set
+                offsets
+                (Char.to_int c |> I64.of_int)
+                (length pattern - i - #1L)) [@nontail])
       in
       { pattern; offsets }
     ;;
@@ -272,34 +299,38 @@ module Make (Data : S) = struct
 
     let rec indexes_from t haystack ~f ~offset =
       (* Boyer-Moore-Horspool string matching *)
+      let open I64.O in
       match slice haystack ~pos:offset ~len:t.pattern.len with
       | None -> ()
       | Some haystack_slice ->
         if memcmp haystack_slice t.pattern then f offset;
         let last_character_of_haystack_slice =
           (* SAFETY: [haystack_slice] has length [t.pattern.len] *)
-          unsafe_at haystack_slice (t.pattern.len - 1)
+          unsafe_at haystack_slice (t.pattern.len - #1L)
         in
         let offset = offset + get_jump t last_character_of_haystack_slice in
         indexes_from t haystack ~f ~offset
     ;;
 
     let indexes t haystack ~f =
-      if length t.pattern = 0
+      let open I64.O in
+      if length t.pattern = #0L
       then
-        for i = 0 to length haystack do
+        for%i64 i = #0L to length haystack do
           f i
         done
-      else indexes_from t haystack ~f ~offset:0
+      else indexes_from t haystack ~f ~offset:#0L
     ;;
 
-    let index t haystack =
-      let result =
-        With_return.with_return (fun { return } ->
-          indexes t haystack ~f:return;
-          -1)
-      in
-      if result = -1 then None else exclave_ Some result
+    let index t haystack : I64.Option.t =
+      let open I64.O in
+      let result = I64.Ref.create_local (-#1L) in
+      With_return.with_return (fun { return } ->
+        indexes t haystack ~f:(fun pos ->
+          I64.Ref.set result pos;
+          return ()) [@nontail]);
+      let result = !result in
+      if result = -#1L then None else exclave_ Some result
     ;;
   end
 
@@ -307,8 +338,8 @@ module Make (Data : S) = struct
     type slice = t [@@deriving sexp_of]
 
     type t =
-      { bad_character : (int Iarray.t[@sexp.opaque])
-      ; bad_suffix : (int Iarray.t[@sexp.opaque])
+      { bad_character : (int64# Iarray.t[@sexp.opaque])
+      ; bad_suffix : (int64# Iarray.t[@sexp.opaque])
       ; pattern : slice
       }
     [@@deriving fields ~getters, sexp_of]
@@ -316,7 +347,7 @@ module Make (Data : S) = struct
     let compute_bad_suffix_table pattern =
       (* TODO: make this more efficient and comprehensible *)
       let pattern = to_string pattern in
-      Iarray.construct ~len:(String.length pattern) ~default:0 ~f:(fun table ->
+      Iarray.construct__bits64 ~len:(String.length pattern) ~default:#0L ~f:(fun table ->
         let at s i = if i < 0 || i >= String.length s then None else Some s.[i] in
         for suffix_length = 0 to String.length pattern - 1 do
           With_return.with_return (fun { return } ->
@@ -331,8 +362,10 @@ module Make (Data : S) = struct
                          (at pattern (String.length pattern - 1 - suffix_length))
                          (at pattern (String.length pattern - 1 - suffix_length - offset)))
               then (
-                table.(String.length pattern - 1 - suffix_length)
-                <- suffix_length + offset;
+                Og_utils__Array.set
+                  table
+                  (String.length pattern - 1 - suffix_length)
+                  (I64.of_int (suffix_length + offset));
                 return ())
             done)
         done)
@@ -340,12 +373,16 @@ module Make (Data : S) = struct
 
     let compute_bad_character_table pattern =
       let pattern = to_string pattern in
-      Iarray.construct
+      let pattern_length = String.length pattern |> I64.of_int in
+      Iarray.construct__bits64
         ~len:256
-        ~default:(String.length pattern)
+        ~default:pattern_length
         ~f:(fun bad_character_table ->
           for i = 0 to String.length pattern - 1 do
-            bad_character_table.(Char.to_int pattern.[i]) <- String.length pattern - 1 - i
+            Og_utils__Array.set
+              bad_character_table
+              (Char.to_int pattern.[i])
+              I64.O.(pattern_length - #1L - I64.of_int i)
           done)
     ;;
 
@@ -356,58 +393,61 @@ module Make (Data : S) = struct
     ;;
 
     let indexes t haystack ~f =
-      if length t.pattern = 0
+      let open I64.O in
+      if length t.pattern = #0L
       then
-        for i = 0 to length haystack do
+        for%i64 i = #0L to length haystack do
           f i
         done
       else (
-        let local_ offset = ref (length t.pattern - 1) in
+        let local_ offset = I64.Ref.create_local (length t.pattern - #1L) in
         while
           match slice haystack ~pos:!offset ~len:(length haystack - !offset) with
           | None -> false
           | Some slice ->
-            (match memchr slice (unsafe_at t.pattern (length t.pattern - 1)) with
+            (match memchr slice (unsafe_at t.pattern (length t.pattern - #1L)) with
              | None -> false
              | Some step_by ->
-               offset := !offset + step_by;
-               !offset >= 0 && !offset < length haystack)
+               I64.Ref.add offset step_by;
+               !offset >= #0L && !offset < length haystack)
         do
-          let local_ pattern_offset = ref (length t.pattern - 1) in
+          let local_ pattern_offset = I64.Ref.create_local (length t.pattern - #1L) in
           while
-            !pattern_offset >= 0
+            !pattern_offset >= #0L
             && Char.equal
                  (unsafe_at t.pattern !pattern_offset)
                  (unsafe_at haystack !offset)
           do
             (* Search right to left through the pattern/haystack *)
-            decr pattern_offset;
-            decr offset
+            I64.Ref.decr pattern_offset;
+            I64.Ref.decr offset
           done;
-          if !pattern_offset < 0
+          if !pattern_offset < #0L
           then (
-            f (!offset + 1);
+            f (!offset + #1L);
             (* FIXME: there is a jump we can do here, I'm just not sure what it is. *)
             (* Advance by one if we have a successful match *)
-            offset := !offset + length t.pattern + 1)
+            I64.Ref.add offset (length t.pattern + #1L))
           else
-            offset
-            := !offset
-               + max
-                   (Iarray.unsafe_get
-                      t.bad_character
-                      (Char.to_int (unsafe_at haystack !offset)))
-                   (Iarray.unsafe_get t.bad_suffix !pattern_offset)
+            I64.Ref.add
+              offset
+              (max
+                 (Iarray.unsafe_get
+                    t.bad_character
+                    (Char.to_int (unsafe_at haystack !offset)))
+                 (I64.Iarray.unsafe_get t.bad_suffix !pattern_offset))
         done)
     ;;
 
-    let index t haystack =
-      let result =
-        With_return.with_return (fun { return } ->
-          indexes t haystack ~f:return;
-          -1)
-      in
-      if result = -1 then None else exclave_ Some result
+    let index t haystack : I64.Option.t =
+      let open I64.O in
+      let result = I64.Ref.create_local (-#1L) in
+      With_return.with_return (fun { return } ->
+        indexes t haystack ~f:(fun pos ->
+          I64.Ref.set result pos;
+          return ()) [@nontail]);
+      let result = !result in
+      if result = -#1L then None else exclave_ Some result
     ;;
   end
 
@@ -418,53 +458,83 @@ module Bytes = struct
   include Make (struct
       include Bytes
 
-      let sub_string t ~pos ~len = Bytes.sub t ~pos ~len |> to_string
+      let substring t ~pos ~len =
+        let pos = I64.to_int_trunc pos in
+        let len = I64.to_int_trunc len in
+        Bytes.sub t ~pos ~len |> to_string
+      ;;
 
       let unsafe_to_string t =
         Bytes.unsafe_to_string ~no_mutation_while_string_reachable:t
       ;;
 
-      let unsafe_get_u64 t n = Bytes.unsafe_get_int64 t n |> I64.of_int64
+      external unsafe_get_u64
+        :  (t[@local_opt])
+        -> int64#
+        -> int64#
+        = "%caml_bytes_get64u#_indexed_by_int64#"
+      [@@noalloc]
+
+      let length t = I64.of_int (length t)
+      let unsafe_get t n = unsafe_get t (I64.to_int_trunc n)
     end)
 
   let unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len =
     Bytes.unsafe_blit
       ~src:src.bytes
-      ~src_pos:(src.pos + src_pos)
+      ~src_pos:(I64.to_int_trunc src.pos + src_pos)
       ~dst:dst.bytes
-      ~dst_pos:(dst.pos + dst_pos)
+      ~dst_pos:(I64.to_int_trunc dst.pos + dst_pos)
       ~len
   ;;
 
   let blit ~src ~src_pos ~dst ~dst_pos ~len =
     if src_pos < 0
        || len < 0
-       || src_pos + len > src.len
+       || src_pos + len > I64.to_int_trunc src.len
        || dst_pos < 0
-       || dst_pos + len > dst.len
+       || dst_pos + len > I64.to_int_trunc dst.len
     then failwith "index out of bounds"
     else unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len
   ;;
 end
 
-module String = Make (struct
-    include String
+module String = struct
+  include Make (struct
+      include String
 
-    let sub_string = sub
-    let unsafe_to_string t = t
+      let substring t ~pos ~len =
+        sub t ~pos:(I64.to_int_trunc pos) ~len:(I64.to_int_trunc len)
+      ;;
 
-    external unsafe_get_u64 : (t[@local_opt]) -> int -> int64 = "%caml_bytes_get64u"
+      let unsafe_to_string t = t
 
-    let unsafe_get_u64 t n = unsafe_get_u64 t n |> I64.of_int64
-  end)
+      external unsafe_get_u64
+        :  (t[@local_opt])
+        -> int64#
+        -> int64#
+        = "%caml_bytes_get64u#_indexed_by_int64#"
+      [@@noalloc]
+
+      let length t = I64.of_int (length t)
+      let unsafe_get t n = unsafe_get t (I64.to_int_trunc n)
+    end)
+
+  let of_string s = create ~pos:#0L ~len:(String.length s |> I64.of_int) s
+end
 
 include String
 
 let%expect_test "test memchr_ocaml" =
-  let haystack = create "7WOS SlX\151Vbj8RhBpDDV\209W9R" in
-  let ocaml_result = memchr_ocaml haystack 'D' |> [%globalize: int option] in
-  print_s [%message (ocaml_result : int option)];
-  [%expect {| (ocaml_result (17)) |}]
+  let haystack = of_string "7WOS SlX\151Vbj8RhBpDDV\209W9R" in
+  let c_result = memchr_fast haystack 'D' |> I64.Option.box in
+  let ocaml_result = memchr_ocaml haystack 'D' |> I64.Option.box in
+  print_s [%message (ocaml_result : int64 option)];
+  print_s [%message (c_result : int64 option)];
+  [%expect {|
+    (ocaml_result (17))
+    (c_result (17))
+    |}]
 ;;
 
 let%expect_test "test memchr_ocaml" =
@@ -472,8 +542,11 @@ let%expect_test "test memchr_ocaml" =
     [%quickcheck.generator: string * char]
     ~sexp_of:[%sexp_of: string * char]
     ~f:(fun (haystack, needle) ->
-      let haystack = create haystack in
-      let c_result = memchr_fast haystack needle |> [%globalize: int option] in
-      let ocaml_result = memchr_ocaml haystack needle |> [%globalize: int option] in
-      assert ([%compare.equal: int option] c_result ocaml_result))
+      let haystack = of_string haystack in
+      let c_result = memchr_fast haystack needle |> I64.Option.box in
+      let ocaml_result = memchr_ocaml haystack needle |> I64.Option.box in
+      if not ([%compare.equal: int64 option] c_result ocaml_result)
+      then
+        raise_s
+          [%message "Mismatch" (c_result : int64 option) (ocaml_result : int64 option)])
 ;;

@@ -10,4 +10,4 @@ type t =
 
 (** [matches t ~input ~offset] returns the number of characters matched, if
     applicable, and returns [None] otherwise. *)
-val matches : t @ local -> input:Slice.t @ local -> offset:int -> int option @ local
+val matches : t @ local -> input:Slice.t @ local -> offset:int64# -> I64.Option.t @ local

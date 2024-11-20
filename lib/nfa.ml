@@ -3,6 +3,7 @@ open! Import
 include Nfa_base
 
 let eval_at t input ~offset =
+  let open I64.O in
   let rec eval_inner t input ~offset ~current_state =
     if State.equal current_state (accepting_state t)
     then (not (Flags.mem (flags t) Require_eol)) || offset = Slice.length input
@@ -22,15 +23,16 @@ let eval_at t input ~offset =
 ;;
 
 let rec eval_from t input ~offset =
+  let open I64.O in
   if offset >= Slice.length input
   then false
-  else eval_at t input ~offset || eval_from t input ~offset:(offset + 1)
+  else eval_at t input ~offset || eval_from t input ~offset:(offset + #1L)
 ;;
 
 let eval t input =
   let initial_edges = node t (initial_state t) in
   if Flags.mem (flags t) Require_sol
-  then eval_at t input ~offset:0
+  then eval_at t input ~offset:#0L
   else (
     match initial_edges with
     | [: (Some (Literal l), _) :] ->
@@ -40,5 +42,5 @@ let eval t input =
         Slice.Search_pattern.indexes l input ~f:(fun offset ->
           if eval_from t input ~offset then return true);
         false) [@nontail]
-    | _ -> eval_from t input ~offset:0)
+    | _ -> eval_from t input ~offset:#0L)
 ;;
