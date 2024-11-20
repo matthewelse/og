@@ -121,9 +121,7 @@ module Make (Data : S) = struct
     else exclave_ unsafe_slice ~pos ~len t
   ;;
 
-  external memchr_fast : t @ local -> char -> int = "slice_memchr" [@@noalloc]
-
-  let memchr_ocaml t c : I64.Option.t =
+  let memchr t c : I64.Option.t =
     let open I64.O in
     (* Adapted from https://bits.stephan-brumme.com/null.html *)
     let result = I64.Ref.create_local (-#1L) in
@@ -156,55 +154,30 @@ module Make (Data : S) = struct
     if result = -#1L then None else exclave_ Some result
   ;;
 
-  let memchr_fast t c : I64.Option.t =
-    match memchr_fast t c with
-    | -1 -> None
-    | i ->
-      let i = I64.of_int i in
-      exclave_ Some i
-  ;;
-
-  let memchr_impl = `ocaml
-
-  let memchr =
-    match memchr_impl with
-    | `c_stub -> memchr_fast
-    | `ocaml -> memchr_ocaml
-  ;;
-
-  let memcmp_impl = `c_stub
-
-  external memcmp_fast : t @ local -> t @ local -> bool = "slice_memcmp" [@@noalloc]
-
-  let memcmp_iter (local_ t) (local_ t') =
+  let memcmp (local_ t) (local_ t') =
     let open I64.O in
     t.len = t'.len
-    && (With_return.with_return (fun { return } ->
-          for%i64 i = #0L to t.len - #1L do
-            if not (Char.equal (unsafe_at t i) (unsafe_at t' i)) then return false
-          done;
-          true) [@nontail])
-  ;;
-
-  let memcmp_rec t t' =
-    let open I64.O in
-    let rec aux t t' i =
-      if i >= t.len
-      then true
-      else if not (Char.equal (unsafe_at t i) (unsafe_at t' i))
-      then false
-      else aux t t' (i + #1L)
+    &&
+    let result = ref true in
+    let offset = I64.Ref.create_local #0L in
+    let `fast_path =
+      while Ref.(!result) && I64.Ref.get offset + #8L <= length t do
+        let bytes = Data.unsafe_get_u64 t.bytes (t.pos + I64.Ref.get offset) in
+        let bytes' = Data.unsafe_get_u64 t'.bytes (t'.pos + I64.Ref.get offset) in
+        if I64.O.(bytes <> bytes') then result := false;
+        I64.Ref.add offset #8L
+      done;
+      `fast_path
     in
-    t.len = t'.len && aux t t' #0L
-  ;;
-
-  let memcmp =
-    (* Empirically, the OCaml implementations are ~identical, but the C stub is
-       ~500ms faster at churning through the Linux kernel. *)
-    match memcmp_impl with
-    | `c_stub -> memcmp_fast
-    | `ocaml_iter -> memcmp_iter
-    | `ocaml_rec -> memcmp_rec
+    let `slow_path =
+      while Ref.(!result) && I64.Ref.get offset < length t do
+        if not (Char.equal (unsafe_at t !offset) (unsafe_at t' !offset))
+        then result := false;
+        I64.Ref.add offset #1L
+      done;
+      `slow_path
+    in
+    Ref.(!result)
   ;;
 
   module KMP = struct
@@ -524,29 +497,3 @@ module String = struct
 end
 
 include String
-
-let%expect_test "test memchr_ocaml" =
-  let haystack = of_string "7WOS SlX\151Vbj8RhBpDDV\209W9R" in
-  let c_result = memchr_fast haystack 'D' |> I64.Option.box in
-  let ocaml_result = memchr_ocaml haystack 'D' |> I64.Option.box in
-  print_s [%message (ocaml_result : int64 option)];
-  print_s [%message (c_result : int64 option)];
-  [%expect {|
-    (ocaml_result (17))
-    (c_result (17))
-    |}]
-;;
-
-let%expect_test "test memchr_ocaml" =
-  Quickcheck.test
-    [%quickcheck.generator: string * char]
-    ~sexp_of:[%sexp_of: string * char]
-    ~f:(fun (haystack, needle) ->
-      let haystack = of_string haystack in
-      let c_result = memchr_fast haystack needle |> I64.Option.box in
-      let ocaml_result = memchr_ocaml haystack needle |> I64.Option.box in
-      if not ([%compare.equal: int64 option] c_result ocaml_result)
-      then
-        raise_s
-          [%message "Mismatch" (c_result : int64 option) (ocaml_result : int64 option)])
-;;

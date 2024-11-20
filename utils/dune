@@ -9,8 +9,4 @@
   stdlib_stable
   stdlib_upstream_compatible
   ;;
-  )
- (foreign_stubs
-  (language c)
-  (flags :standard -Wall -pedantic -O3 -g)
-  (names slice_stubs)))
+  ))

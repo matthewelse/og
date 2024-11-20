@@ -141,3 +141,17 @@ let%expect_test "quickcheck" =
           (test_slice ~needle ~haystack:(salt ^ needle ^ salt))
           (test_string ~needle ~haystack:(salt ^ needle ^ salt))))
 ;;
+
+let%expect_test "quickcheck memchr" =
+  Quickcheck.test
+    [%quickcheck.generator: string * char]
+    ~sexp_of:[%sexp_of: string * char]
+    ~f:(fun (haystack, needle) ->
+      let core_result = Core.String.index haystack needle |> Option.map ~f:Int64.of_int in
+      let haystack = Slice.of_string haystack in
+      let ocaml_result = Slice.memchr haystack needle |> I64.Option.box in
+      if not ([%compare.equal: int64 option] core_result ocaml_result)
+      then
+        raise_s
+          [%message "Mismatch" (core_result : int64 option) (ocaml_result : int64 option)])
+;;
