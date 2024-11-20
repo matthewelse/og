@@ -51,6 +51,9 @@ module Make (Data : S) = struct
       raise_s [%message "Length < 0" (t : t)])
   ;;
 
+  let unsafe_create bytes ~pos ~len = { bytes; pos; len }
+  let unsafe_create_local bytes ~pos ~len = exclave_ { bytes; pos; len }
+
   let create ?(pos = 0) ?len bytes =
     let len = Option.value len ~default:(Data.length bytes - pos) in
     let t = { bytes; pos; len } in
@@ -118,16 +121,14 @@ module Make (Data : S) = struct
     let `fast_path =
       let mask_lo = #0x0101010101010101L in
       let mask_hi = #0x8080808080808080L in
-      let mask_c = Int64_u.splat c in
+      let mask_c = I64.splat c in
       while !result = -1 && !offset + 8 <= length t do
         let bytes = Data.unsafe_get_u64 t.bytes (t.pos + !offset) in
-        let with_c_zeros = Int64_u.O.(bytes lxor mask_c) in
-        let res =
-          Int64_u.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi)
-        in
-        if Int64_u.O.(res <> #0L)
+        let with_c_zeros = I64.O.(bytes lxor mask_c) in
+        let res = I64.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi) in
+        if I64.O.(res <> #0L)
         then (
-          let byte_offset = Int64_u.ctz res lsr 3 in
+          let byte_offset = I64.ctz res lsr 3 in
           result := !offset + byte_offset);
         offset := !offset + 8
       done;
@@ -362,7 +363,16 @@ module Make (Data : S) = struct
         done
       else (
         let local_ offset = ref (length t.pattern - 1) in
-        while !offset >= 0 && !offset < length haystack do
+        while
+          match slice haystack ~pos:!offset ~len:(length haystack - !offset) with
+          | None -> false
+          | Some slice ->
+            (match memchr slice (unsafe_at t.pattern (length t.pattern - 1)) with
+             | None -> false
+             | Some step_by ->
+               offset := !offset + step_by;
+               !offset >= 0 && !offset < length haystack)
+        do
           let local_ pattern_offset = ref (length t.pattern - 1) in
           while
             !pattern_offset >= 0
@@ -414,9 +424,7 @@ module Bytes = struct
         Bytes.unsafe_to_string ~no_mutation_while_string_reachable:t
       ;;
 
-      let unsafe_get_u64 t n =
-        Bytes.unsafe_get_int64 t n |> Stdlib_upstream_compatible.Int64_u.of_int64
-      ;;
+      let unsafe_get_u64 t n = Bytes.unsafe_get_int64 t n |> I64.of_int64
     end)
 
   let unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len =
@@ -447,9 +455,7 @@ module String = Make (struct
 
     external unsafe_get_u64 : (t[@local_opt]) -> int -> int64 = "%caml_bytes_get64u"
 
-    let unsafe_get_u64 t n =
-      unsafe_get_u64 t n |> Stdlib_upstream_compatible.Int64_u.of_int64
-    ;;
+    let unsafe_get_u64 t n = unsafe_get_u64 t n |> I64.of_int64
   end)
 
 include String

@@ -28,6 +28,11 @@ module type S = sig
   (** Identical behaviour to [create_local], but allocates [t] globally. *)
   val create : ?pos:int -> ?len:int -> data -> t
 
+  (** Like [create], but the user is responsible for maintaining the invariants
+      enforced in [check_bounds]. *)
+  val unsafe_create : data -> pos:int -> len:int -> t
+
+  val unsafe_create_local : data -> pos:int -> len:int -> t @ local
   val length : t @ local -> int
 
   (** [at_exn t pos] raises if [pos < 0 || pos >= length t]. *)

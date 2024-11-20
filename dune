@@ -12,5 +12,7 @@
    :standard
    -g
    -gno-upstream-dwarf
-   -gstartup
-   -gdwarf-may-alter-codegen)))
+   ; FIXME: I think there's a bug in the DWARF backend, maybe try re-enabling
+   ; these another time.
+   ; -gstartup -gdwarf-may-alter-codegen
+   )))

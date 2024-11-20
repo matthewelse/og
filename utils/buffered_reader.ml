@@ -116,21 +116,21 @@ let take_all t f =
 
 let line t ~f =
   (* Return the index of the first '\n', reading more data as needed. *)
-  let rec aux i =
+  let rec aux t i =
     let slice = Slice.Bytes.unsafe_slice (peek t) ~pos:i ~len:(t.len - i) in
     match Slice.Bytes.memchr slice '\n' with
     | None ->
       ensure t (t.len + 1);
-      aux i
+      aux t i
     | Some pos -> pos
   in
-  match aux 0 with
+  match aux t 0 with
   | exception End_of_file when t.len > 0 -> take_all t f
   | nl ->
     let len = if nl > 0 && Char.equal (unsafe_get t (nl - 1)) '\r' then nl - 1 else nl in
     let result =
       let buf = Bytes.unsafe_to_string ~no_mutation_while_string_reachable:t.buf in
-      f (Slice.create_local buf ~pos:t.pos ~len)
+      f (Slice.unsafe_create_local buf ~pos:t.pos ~len)
     in
     consume t (nl + 1);
     result

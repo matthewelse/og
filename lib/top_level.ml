@@ -51,6 +51,47 @@ module Source = struct
   ;;
 end
 
+let main ~pattern ~count ~impl ~buffer_size ~max_buffer_size ~input_source =
+  let open Or_error.Let_syntax in
+  let source : Source.t =
+    match input_source with
+    | "-" -> Stdin
+    | input_source -> Files_recursively_under input_source
+  in
+  let%bind regex = Regex.of_string pattern in
+  let compiled = Regex.compile ~impl regex in
+  let num_matches = ref 0 in
+  Source.iter source ~buffer_size ~max_buffer_size ~f:(fun path reader ->
+    let local_ file_matches = ref 0 in
+    let local_ line_number = ref 0 in
+    while
+      try
+        Buffered_reader.line reader ~f:(fun line ->
+          incr line_number;
+          if Regex.Compiled.matches compiled line
+          then (
+            incr file_matches;
+            incr num_matches;
+            if not count
+            then (
+              if !file_matches = 1
+              then (
+                if !num_matches > !file_matches then print_endline "";
+                print_endline path);
+              print_endline [%string "%{!line_number#Int}: %{line#Slice}"]));
+          true)
+      with
+      | End_of_file -> false
+    do
+      ()
+    done);
+  if !num_matches > 0
+  then (
+    if count then print_endline (Int.to_string !num_matches);
+    Ok ())
+  else Or_error.error_string "no matches"
+;;
+
 let command =
   Command.basic_or_error
     ~summary:"recursively search the current directory for lines matching a pattern"
@@ -79,43 +120,5 @@ let command =
           (optional_with_default 65536 int)
           ~doc:"BYTES maximum number of bytes to pre-allocate into the read buffer."
       and input_source = anon (maybe_with_default "." ("INPUT" %: string)) in
-      fun () ->
-        let open Or_error.Let_syntax in
-        let source : Source.t =
-          match input_source with
-          | "-" -> Stdin
-          | input_source -> Files_recursively_under input_source
-        in
-        let%bind regex = Regex.of_string pattern in
-        let compiled = Regex.compile ~impl regex in
-        let num_matches = ref 0 in
-        Source.iter source ~buffer_size ~max_buffer_size ~f:(fun path reader ->
-          let local_ file_matches = ref 0 in
-          let local_ line_number = ref 0 in
-          while
-            try
-              Buffered_reader.line reader ~f:(fun line ->
-                incr line_number;
-                if Regex.Compiled.matches compiled line
-                then (
-                  incr file_matches;
-                  incr num_matches;
-                  if not count
-                  then (
-                    if !file_matches = 1
-                    then (
-                      if !num_matches > !file_matches then print_endline "";
-                      print_endline path);
-                    print_endline [%string "%{!line_number#Int}: %{line#Slice}"]));
-                true)
-            with
-            | End_of_file -> false
-          do
-            ()
-          done);
-        if !num_matches > 0
-        then (
-          if count then print_endline (Int.to_string !num_matches);
-          Ok ())
-        else Or_error.error_string "no matches"]
+      fun () -> main ~pattern ~count ~impl ~buffer_size ~max_buffer_size ~input_source]
 ;;
