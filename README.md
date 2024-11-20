@@ -8,7 +8,8 @@ high-performance tool in pure, safe OCaml.
 - [x] Backtracking NFA implementation.
 - [x] Hybrid NFA (lazy DFA) implementation.
 - [ ] Use SIMD directly from OCaml to remove the need for C stubs.
-- [ ] Full implementation of Boyer-Moore for string matching.
+- [x] Full implementation of Boyer-Moore for string matching.
 - [ ] Parallelize directory tree walking.
 - [ ] Support for globs.
 - [ ] Support for ignoring .gitignore'd files.
+- [ ] If matching "^{literal}" just do Slice.is_prefix, rather than full string matching.
