@@ -10,7 +10,6 @@
   stdlib_upstream_compatible
   ;;
   )
- (ocamlopt_flags :standard -O3 -g)
  (foreign_stubs
   (language c)
   (flags :standard -Wall -pedantic -O3 -g)

@@ -21,3 +21,7 @@
  (description "")
  (depends ocaml dune)
  (tags (grep)))
+
+;; needed for good debugging!
+
+(map_workspace_root false)

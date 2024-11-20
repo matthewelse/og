@@ -1,0 +1,16 @@
+(env
+ (release
+  (ocamlopt_flags
+   :standard
+   -O3
+   -g
+   -gno-upstream-dwarf
+   -gstartup
+   -gdwarf-may-alter-codegen))
+ (dev
+  (ocamlopt_flags
+   :standard
+   -g
+   -gno-upstream-dwarf
+   -gstartup
+   -gdwarf-may-alter-codegen)))
