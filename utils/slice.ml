@@ -126,31 +126,32 @@ module Make (Data : S) = struct
     (* Adapted from https://bits.stephan-brumme.com/null.html *)
     let result = I64.Ref.create_local (-#1L) in
     let offset = I64.Ref.create_local #0L in
+    let length = length t in
     let `fast_path =
       let mask_lo = #0x0101010101010101L in
       let mask_hi = #0x8080808080808080L in
       let mask_c = I64.splat c in
-      while I64.Ref.get result = -#1L && I64.Ref.get offset + #8L <= length t do
-        let bytes = Data.unsafe_get_u64 t.bytes (t.pos + I64.Ref.get offset) in
+      while !result = -#1L && !offset + #8L <= length do
+        let bytes = Data.unsafe_get_u64 t.bytes (t.pos + !offset) in
         let with_c_zeros = I64.O.(bytes lxor mask_c) in
         let res = I64.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi) in
         if I64.O.(res <> #0L)
         then (
           let byte_offset = I64.ctz res lsr 3 in
-          I64.Ref.set result (I64.Ref.get offset + I64.of_int byte_offset));
+          I64.Ref.set result (!offset + I64.of_int byte_offset));
         I64.Ref.add offset #8L
       done;
       `fast_path
     in
     let `slow_path =
-      while I64.Ref.get result = -#1L && I64.Ref.get offset < length t do
-        if Char.equal (unsafe_at t (I64.Ref.get offset)) c
-        then I64.Ref.set result (I64.Ref.get offset)
+      while !result = -#1L && !offset < length do
+        if Char.equal (unsafe_at t !offset) c
+        then I64.Ref.set result !offset
         else I64.Ref.add offset #1L
       done;
       `slow_path
     in
-    let result = I64.Ref.get result in
+    let result = !result in
     if result = -#1L then None else exclave_ Some result
   ;;
 
@@ -160,17 +161,18 @@ module Make (Data : S) = struct
     &&
     let result = ref true in
     let offset = I64.Ref.create_local #0L in
+    let length = t.len in
     let `fast_path =
-      while Ref.(!result) && I64.Ref.get offset + #8L <= length t do
-        let bytes = Data.unsafe_get_u64 t.bytes (t.pos + I64.Ref.get offset) in
-        let bytes' = Data.unsafe_get_u64 t'.bytes (t'.pos + I64.Ref.get offset) in
+      while Ref.(!result) && !offset + #8L <= length do
+        let bytes = Data.unsafe_get_u64 t.bytes (t.pos + !offset) in
+        let bytes' = Data.unsafe_get_u64 t'.bytes (t'.pos + !offset) in
         if I64.O.(bytes <> bytes') then result := false;
         I64.Ref.add offset #8L
       done;
       `fast_path
     in
     let `slow_path =
-      while Ref.(!result) && I64.Ref.get offset < length t do
+      while Ref.(!result) && !offset < length do
         if not (Char.equal (unsafe_at t !offset) (unsafe_at t' !offset))
         then result := false;
         I64.Ref.add offset #1L
