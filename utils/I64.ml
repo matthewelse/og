@@ -4,8 +4,8 @@ include Stdlib_upstream_compatible.Int64_u
 type t = int64#
 
 let sexp_of_t t = Int64.sexp_of_t (to_int64 t)
-let ctz t = Int64.ctz (to_int64 t)
-let clz t = Int64.clz (to_int64 t)
+let[@inline always] ctz t = Int64.ctz (to_int64 t)
+let[@inline always] clz t = Int64.clz (to_int64 t)
 let to_int_trunc t = to_int t
 
 module Ref = struct

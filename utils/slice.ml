@@ -132,6 +132,12 @@ module Make (Data : S) = struct
       let mask_hi = #0x8080808080808080L in
       let mask_c = I64.splat c in
       while !result = -#1L && !offset + #8L <= length do
+        (* FIXME melse: the generated assembly for this seems to load one byte
+           at a time... Is this something to do with alignment? 
+
+           yep, this is the culprit
+           https://github.com/ocaml-flambda/flambda-backend/blob/a6337c2a0f45d0cf321bff571eb437a6027b0e8a/backend/cmm_helpers.ml#L2177
+        *)
         let bytes = Data.unsafe_get_u64 t.bytes (t.pos + !offset) in
         let with_c_zeros = I64.O.(bytes lxor mask_c) in
         let res = I64.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi) in

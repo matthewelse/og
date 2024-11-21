@@ -59,7 +59,7 @@ let main ~pattern ~count ~impl ~buffer_size ~max_buffer_size ~input_source =
     | input_source -> Files_recursively_under input_source
   in
   let%bind regex = Regex.of_string pattern in
-  let compiled = Regex.compile ~impl regex in
+  let compiled = Regex.compile ?impl regex in
   let num_matches = ref 0 in
   Source.iter source ~buffer_size ~max_buffer_size ~f:(fun path reader ->
     let local_ file_matches = ref 0 in
@@ -102,13 +102,12 @@ let command =
       and impl =
         flag
           "impl"
-          (optional_with_default
-             Implementation.Nfa_hybrid
+          (optional
              (Arg_type.enumerated_sexpable
                 ~case_sensitive:false
                 ~accept_unique_prefixes:true
                 (module Implementation)))
-          ~doc:"IMPL which implementation to use."
+          ~doc:"IMPL specific matching implementation to use."
       and buffer_size =
         flag
           "buffer-size"

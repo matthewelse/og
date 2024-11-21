@@ -140,11 +140,17 @@ module Compiled = struct
   let matches (T { impl = (module Impl); compiled }) input = Impl.eval compiled input
 end
 
-let compile ?(impl = Implementation.Nfa_backtrack) t : Compiled.t =
+let compile ?(impl : Implementation.t option) t : Compiled.t =
   let (module Impl : Implementation.S) =
     match impl with
-    | Nfa_backtrack -> (module Nfa)
-    | Nfa_hybrid -> (module Nfa_hybrid)
+    | None ->
+      (* If you're just matching on literals, use the literal matcher, which
+         just uses memcmp/Boyer-Moore, but it can't support much else. *)
+      (match t.re with
+       | String _ -> (module Literal)
+       | _ -> (module Nfa_hybrid))
+    | Some Nfa_backtrack -> (module Nfa)
+    | Some Nfa_hybrid -> (module Nfa_hybrid)
   in
   let compiled = Impl.compile t in
   T { impl = (module Impl); compiled }
