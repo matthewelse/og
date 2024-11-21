@@ -105,11 +105,11 @@ module O = struct
   let ( lxor ) = logxor
   let ( lsl ) = shift_left
   let ( = ) = equal
-  let ( <> ) x y = not (equal x y)
-  let ( > ) t t' = compare t t' > 0
-  let ( >= ) t t' = compare t t' >= 0
-  let ( < ) t t' = compare t t' < 0
-  let ( <= ) t t' = compare t t' <= 0
+  let[@inlne always] ( <> ) t t' = Int64.O.( <> ) (to_int64 t) (to_int64 t')
+  let[@inlne always] ( > ) t t' = Int64.O.( > ) (to_int64 t) (to_int64 t')
+  let[@inlne always] ( < ) t t' = Int64.O.( < ) (to_int64 t) (to_int64 t')
+  let[@inlne always] ( <= ) t t' = Int64.O.( <= ) (to_int64 t) (to_int64 t')
+  let[@inlne always] ( >= ) t t' = Int64.O.( >= ) (to_int64 t) (to_int64 t')
   let lnot = lognot
   let ( * ) = mul
   let ( / ) = div
