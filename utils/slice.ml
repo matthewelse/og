@@ -137,7 +137,9 @@ module Make (Data : S) = struct
 
            yep, this is the culprit
            https://github.com/ocaml-flambda/flambda-backend/blob/a6337c2a0f45d0cf321bff571eb437a6027b0e8a/backend/cmm_helpers.ml#L2177
-        *)
+
+           Looks like we need to use bigstrings to ensure our buffers are
+           aligned... *)
         let bytes = Data.unsafe_get_u64 t.bytes (t.pos + !offset) in
         let with_c_zeros = I64.O.(bytes lxor mask_c) in
         let res = I64.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi) in
