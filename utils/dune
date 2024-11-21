@@ -6,6 +6,7 @@
  (libraries
   core
   core_unix
+  core_unix.bigstring_unix
   stdlib_stable
   stdlib_upstream_compatible
   ;;

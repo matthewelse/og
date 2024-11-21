@@ -12,7 +12,7 @@ module Source = struct
      | End_of_file -> ());
     let buf = Buffered_reader.peek reader in
     With_return.with_return (fun { return } ->
-      Slice.Bytes.iter buf ~f:(fun byte -> if Char.to_int byte >= 128 then return true);
+      Slice.iter buf ~f:(fun byte -> if Char.to_int byte >= 128 then return true);
       false) [@nontail]
   ;;
 

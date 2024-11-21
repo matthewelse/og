@@ -11,6 +11,7 @@ val min : t -> t -> t
 val max : t -> t -> t
 val of_int : int -> t
 val to_int_trunc : t -> int
+val to_int_exn : t -> int
 
 module Ref : sig
   type i64 := t
@@ -85,6 +86,10 @@ end
 
 module Bytes : sig
   val unsafe_get : Bytes.t @ local -> t -> char
+end
+
+module Bigstring : sig
+  val unsafe_get : Bigstring.t @ local -> t -> char
 end
 
 module O : sig

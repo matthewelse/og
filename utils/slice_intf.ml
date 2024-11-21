@@ -54,6 +54,7 @@ module type S = sig
   val memcmp : t @ local -> t @ local -> bool
 
   val memchr : t @ local -> char -> I64.Option.t @ local
+  val of_string : string @ local -> t
   val to_string : t @ local -> string
   val print_endline : t @ local -> unit
   val iter : t @ local -> f:(char -> unit) @ local -> unit
@@ -70,15 +71,19 @@ module type S = sig
   module Search_pattern : Search with type slice := t
 end
 
+module type S_mutable = sig
+  include S
+
+  val blit : (t, t) Blit.blit
+  val unsafe_blit : (t, t) Blit.blit
+end
+
 module type Slice = sig
-  include S with type data := string
+  module Bytes : S_mutable with type data := bytes
+  module Bigstring : S_mutable with type data := Bigstring.t
+  module String : S with type data := string
 
-  val of_string : string -> t
-
-  module Bytes : sig
-    include S with type data := bytes
-
-    val blit : (t, t) Blit.blit
-    val unsafe_blit : (t, t) Blit.blit
+  include module type of struct
+    include Bigstring
   end
 end

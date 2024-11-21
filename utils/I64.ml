@@ -7,6 +7,7 @@ let sexp_of_t t = Int64.sexp_of_t (to_int64 t)
 let[@inline always] ctz t = Int64.ctz (to_int64 t)
 let[@inline always] clz t = Int64.clz (to_int64 t)
 let to_int_trunc t = to_int t
+let[@inline always] to_int_exn t = Int64.to_int_exn (to_int64 t)
 
 module Ref = struct
   type i64 = t
@@ -97,6 +98,10 @@ end
 
 module Bytes = struct
   let unsafe_get t n = Bytes.unsafe_get t (to_int_trunc n)
+end
+
+module Bigstring = struct
+  let unsafe_get t n = Bigstring.unsafe_get t (to_int_trunc n)
 end
 
 module O = struct

@@ -6,8 +6,9 @@ module type S = sig
   val substring : t -> pos:int64# -> len:int64# -> string
   val length : t -> int64#
   val unsafe_get : t -> int64# -> char
-  val unsafe_get_u64 : t -> int64# -> int64#
-  val unsafe_to_string : t -> string
+  val unsafe_get_i64 : t -> int64# -> int64#
+  val to_string : t -> string
+  val of_string : string @ local -> t
 end
 
 module Make (Data : S) = struct
@@ -30,7 +31,7 @@ module Make (Data : S) = struct
   let print_endline t =
     Out_channel.output_substring
       stdout
-      ~buf:(Data.unsafe_to_string t.bytes)
+      ~buf:(Data.to_string t.bytes)
       ~pos:(I64.to_int_trunc t.pos)
       ~len:(I64.to_int_trunc t.len);
     Out_channel.newline stdout
@@ -65,6 +66,11 @@ module Make (Data : S) = struct
     let local_ t = { bytes; pos; len } in
     check_bounds t;
     t
+  ;;
+
+  let of_string s =
+    let d = Data.of_string s in
+    unsafe_create d ~pos:#0L ~len:(Data.length d)
   ;;
 
   let length t = t.len
@@ -140,7 +146,7 @@ module Make (Data : S) = struct
 
            Looks like we need to use bigstrings to ensure our buffers are
            aligned... *)
-        let bytes = Data.unsafe_get_u64 t.bytes (t.pos + !offset) in
+        let bytes = Data.unsafe_get_i64 t.bytes (t.pos + !offset) in
         let with_c_zeros = I64.O.(bytes lxor mask_c) in
         let res = I64.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi) in
         if I64.O.(res <> #0L)
@@ -172,8 +178,8 @@ module Make (Data : S) = struct
     let length = t.len in
     let `fast_path =
       while Ref.(!result) && !offset + #8L <= length do
-        let bytes = Data.unsafe_get_u64 t.bytes (t.pos + !offset) in
-        let bytes' = Data.unsafe_get_u64 t'.bytes (t'.pos + !offset) in
+        let bytes = Data.unsafe_get_i64 t.bytes (t.pos + !offset) in
+        let bytes' = Data.unsafe_get_i64 t'.bytes (t'.pos + !offset) in
         if I64.O.(bytes <> bytes') then result := false;
         I64.Ref.add offset #8L
       done;
@@ -447,11 +453,9 @@ module Bytes = struct
         Bytes.sub t ~pos ~len |> to_string
       ;;
 
-      let unsafe_to_string t =
-        Bytes.unsafe_to_string ~no_mutation_while_string_reachable:t
-      ;;
+      let to_string t = Bytes.unsafe_to_string ~no_mutation_while_string_reachable:t
 
-      external unsafe_get_u64
+      external unsafe_get_i64
         :  (t[@local_opt])
         -> int64#
         -> int64#
@@ -460,6 +464,7 @@ module Bytes = struct
 
       let length t = I64.of_int (length t)
       let unsafe_get t n = unsafe_get t (I64.to_int_trunc n)
+      let of_string s = Bytes.of_string (String.globalize s)
     end)
 
   let unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len =
@@ -490,9 +495,9 @@ module String = struct
         sub t ~pos:(I64.to_int_trunc pos) ~len:(I64.to_int_trunc len)
       ;;
 
-      let unsafe_to_string t = t
+      let to_string t = t
 
-      external unsafe_get_u64
+      external unsafe_get_i64
         :  (t[@local_opt])
         -> int64#
         -> int64#
@@ -501,9 +506,53 @@ module String = struct
 
       let length t = I64.of_int (length t)
       let unsafe_get t n = unsafe_get t (I64.to_int_trunc n)
+      let of_string s = globalize s
     end)
-
-  let of_string s = create ~pos:#0L ~len:(String.length s |> I64.of_int) s
 end
 
-include String
+module Bigstring = struct
+  include Make (struct
+      include Bigstring
+
+      let substring t ~pos ~len =
+        let sub =
+          sub_shared_local ~pos:(I64.to_int_trunc pos) ~len:(I64.to_int_trunc len) t
+        in
+        to_string sub [@nontail]
+      ;;
+
+      let to_string t = to_string t
+
+      external unsafe_get_i64
+        :  (t[@local_opt])
+        -> int64#
+        -> int64#
+        = "%caml_bigstring_get64u#_indexed_by_int64#"
+      [@@noalloc]
+
+      let[@inline always] unsafe_get t n = unsafe_get t (I64.to_int_trunc n)
+      let length t = length t |> I64.of_int
+      let of_string s = of_string s
+    end)
+
+  let unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len =
+    Bigstring.unsafe_blit
+      ~src:src.bytes
+      ~src_pos:(I64.to_int_trunc src.pos + src_pos)
+      ~dst:dst.bytes
+      ~dst_pos:(I64.to_int_trunc dst.pos + dst_pos)
+      ~len
+  ;;
+
+  let blit ~src ~src_pos ~dst ~dst_pos ~len =
+    if src_pos < 0
+       || len < 0
+       || src_pos + len > I64.to_int_trunc src.len
+       || dst_pos < 0
+       || dst_pos + len > I64.to_int_trunc dst.len
+    then failwith "index out of bounds"
+    else unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len
+  ;;
+end
+
+include Bigstring

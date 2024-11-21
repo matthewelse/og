@@ -3,18 +3,28 @@ open! Import
 module Slice = Og_utils.Slice
 
 let%expect_test "string slices" =
-  Quickcheck.test [%quickcheck.generator: string] ~sexp_of:[%sexp_of: string] ~f:(fun s ->
-    for pos = 0 to String.length s - 1 do
-      assert (
-        String.equal
-          (String.subo ~pos s)
-          (Slice.create s ~pos:(I64.of_int pos) ~len:(String.length s - pos |> I64.of_int)
-           |> Slice.to_string))
-    done)
+  Quickcheck.test
+    [%quickcheck.generator: string]
+    ~sexp_of:[%sexp_of: string]
+    ~f:(fun s' ->
+      let s = Bigstring.of_string s' in
+      for pos = 0 to Bigstring.length s - 1 do
+        assert (
+          String.equal
+            (String.subo ~pos s')
+            (Slice.create
+               s
+               ~pos:(I64.of_int pos)
+               ~len:(Bigstring.length s - pos |> I64.of_int)
+             |> Slice.to_string))
+      done)
 ;;
 
 let%expect_test "test string matching" =
-  let pat = Slice.Search_pattern.create (Slice.create ~pos:#0L ~len:#3L "asdf") in
+  let pat =
+    Slice.Search_pattern.create
+      (Slice.of_string "asdf" |> Slice.slice_exn ~pos:#0L ~len:#3L |> Slice.globalize)
+  in
   let result =
     Slice.Search_pattern.index pat (Slice.of_string "asdf") |> I64.Option.box
   in
