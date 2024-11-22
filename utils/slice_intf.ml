@@ -56,6 +56,7 @@ module type S = sig
   val memchr : t @ local -> char -> I64.Option.t @ local
   val of_string : string @ local -> t
   val to_string : t @ local -> string
+  val output : t @ local -> Out_channel.t -> unit
   val print_endline : t @ local -> unit
   val iter : t @ local -> f:(char -> unit) @ local -> unit
 

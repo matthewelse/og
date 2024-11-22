@@ -2,6 +2,7 @@ open! Core
 
 type t = int64# [@@deriving sexp_of]
 
+val to_string : t -> string
 external to_int64 : t -> (int64[@local_opt]) = "%box_int64"
 external of_int64 : (int64[@local_opt]) -> t = "%unbox_int64"
 val splat : char -> t

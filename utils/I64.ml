@@ -22,6 +22,7 @@ external clz
 
 let[@inline always] to_int_trunc t = to_int t
 let[@inline always] to_int_exn t = Int64.to_int_exn (to_int64 t)
+let to_string t = Int64.to_string (to_int64 t)
 
 module Ref = struct
   type i64 = t

@@ -5,6 +5,7 @@ module type S = sig
 
   val substring : t -> pos:int64# -> len:int64# -> string
   val length : t -> int64#
+  val output : t -> Out_channel.t -> pos:int -> len:int -> unit
   val unsafe_get : t -> int64# -> char
   val unsafe_get_i64 : t -> int64# -> int64#
   val to_string : t -> string
@@ -178,6 +179,14 @@ module Make (Data : S) = struct
   let memcmp (local_ t) (local_ t') =
     let open I64.O in
     t.len = t'.len && memcmp_fast_path t t' ~offset:#0L ~length:t.len
+  ;;
+
+  let output t out_channel =
+    Data.output
+      t.bytes
+      out_channel
+      ~pos:(I64.to_int_trunc t.pos)
+      ~len:(I64.to_int_trunc t.len)
   ;;
 
   module KMP = struct
@@ -450,6 +459,14 @@ module Bytes = struct
       let length t = I64.of_int (length t)
       let unsafe_get t n = unsafe_get t (I64.to_int_trunc n)
       let of_string s = Bytes.of_string (String.globalize s)
+
+      let output t channel ~pos ~len =
+        Out_channel.output_substring
+          channel
+          ~pos
+          ~len
+          ~buf:(Bytes.unsafe_to_string ~no_mutation_while_string_reachable:t)
+      ;;
     end)
 
   let unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len =
@@ -492,6 +509,10 @@ module String = struct
       let length t = I64.of_int (length t)
       let unsafe_get t n = unsafe_get t (I64.to_int_trunc n)
       let of_string s = globalize s
+
+      let output t channel ~pos ~len =
+        Out_channel.output_substring channel ~pos ~len ~buf:t
+      ;;
     end)
 end
 
@@ -518,6 +539,7 @@ module Bigstring = struct
       let[@inline always] unsafe_get t n = unsafe_get t (I64.to_int_trunc n)
       let length t = length t |> I64.of_int
       let of_string s = of_string s
+      let output t channel ~pos ~len = Bigstring_unix.really_output stdout ~pos ~len t
     end)
 
   let unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len =
