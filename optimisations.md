@@ -24,7 +24,10 @@
 - [ ] SIMD-accelerated string matching
   (https://github.com/BurntSushi/aho-corasick/blob/master/src/packed/teddy/README.md)
 - [x] Aligned loads in `memchr`/`memcmp`, rather than 8 (!) single-byte loads.
-- [ ] Cache-line aligned bigstring allocations?
+  - [x] Teach the compiler that aarch64 allows unaligned loads (sometimes)
+  - [ ] Try making the fast path prioritise aligned loads?
+- [ ] Cache-line aligned bigstring allocations? This will involve writing a
+  custom bigstring allocation stub.
 - [x] `[@@inline]` on `Slice.Make` (otherwise, we end up with a bunch of
   `caml_apply`s in surprising places).
 - [x] Use tail-recursive functions, rather than loops (seems like the compiler
