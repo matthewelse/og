@@ -78,7 +78,8 @@ let main ~pattern ~count ~impl ~buffer_size ~max_buffer_size ~input_source =
               then (
                 if !num_matches > !file_matches then print_endline "";
                 print_endline path);
-              print_endline [%string "%{!line_number#Int}: %{line#Slice}"]));
+              print_endline [%string "%{!line_number#Int}: %{line#Slice}"])
+            else print_endline [%string "%{path}:%{!line_number#Int}: %{line#Slice}"]);
           true)
       with
       | End_of_file -> false
