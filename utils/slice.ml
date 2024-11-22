@@ -435,6 +435,8 @@ module Make (Data : S) = struct
 
   module Search_pattern = Boyer_moore
 end
+(* This is critical for performance. If this is missing, a bunch of direct
+   function calls will require [caml_apply]. *)
 [@@inline always]
 
 module Bytes = struct
