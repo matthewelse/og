@@ -5,8 +5,19 @@ type t = int64# [@@deriving sexp_of]
 external to_int64 : t -> (int64[@local_opt]) = "%box_int64"
 external of_int64 : (int64[@local_opt]) -> t = "%unbox_int64"
 val splat : char -> t
-val ctz : t -> int
-val clz : t -> int
+
+external ctz
+  :  int64#
+  -> (int[@untagged])
+  = "caml_int64_ctz" "caml_int64_ctz_unboxed_to_untagged"
+[@@noalloc] [@@no_effects] [@@no_coeffects] [@@builtin]
+
+external clz
+  :  int64#
+  -> (int[@untagged])
+  = "caml_int64_clz" "caml_int64_clz_unboxed_to_untagged"
+[@@noalloc] [@@no_effects] [@@no_coeffects] [@@builtin]
+
 val min : t -> t -> t
 val max : t -> t -> t
 val of_int : int -> t
@@ -113,4 +124,8 @@ module O : sig
   val decr : Ref.t @ local -> unit
   val max : t -> t -> t
   val min : t -> t -> t
+end
+
+module Hex : sig
+  type nonrec t = t [@@deriving sexp_of]
 end

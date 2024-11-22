@@ -4,22 +4,36 @@ include Stdlib_upstream_compatible.Int64_u
 type t = int64#
 
 let sexp_of_t t = Int64.sexp_of_t (to_int64 t)
-let[@inline always] ctz t = Int64.ctz (to_int64 t)
-let[@inline always] clz t = Int64.clz (to_int64 t)
-let to_int_trunc t = to_int t
+
+(* FIXME: This use of intrinsics might be broken in amd64, which needs special
+handling for n=0. *)
+
+external ctz
+  :  int64#
+  -> (int[@untagged])
+  = "caml_int64_ctz" "caml_int64_ctz_unboxed_to_untagged"
+[@@noalloc] [@@no_effects] [@@no_coeffects] [@@builtin]
+
+external clz
+  :  int64#
+  -> (int[@untagged])
+  = "caml_int64_clz" "caml_int64_clz_unboxed_to_untagged"
+[@@noalloc] [@@no_effects] [@@no_coeffects] [@@builtin]
+
+let[@inline always] to_int_trunc t = to_int t
 let[@inline always] to_int_exn t = Int64.to_int_exn (to_int64 t)
 
 module Ref = struct
   type i64 = t
   type t = { mutable value : i64 }
 
-  let create_local n = exclave_ { value = n }
-  let create n = { value = n }
-  let add t n = t.value <- add t.value n
-  let get t = t.value
-  let set t n = t.value <- n
-  let incr t = add t #1L
-  let decr t = add t (-#1L)
+  let[@inline always] create_local n = exclave_ { value = n }
+  let[@inline always] create n = { value = n }
+  let[@inline always] add t n = t.value <- add t.value n
+  let[@inline always] get t = t.value
+  let[@inline always] set t n = t.value <- n
+  let[@inline always] incr t = add t #1L
+  let[@inline always] decr t = add t (-#1L)
 end
 
 module Option = struct
@@ -93,15 +107,15 @@ module Array = struct
 end
 
 module String = struct
-  let length t = String.length t |> of_int
+  let[@inline always] length t = String.length t |> of_int
 end
 
 module Bytes = struct
-  let unsafe_get t n = Bytes.unsafe_get t (to_int_trunc n)
+  let[@inline always] unsafe_get t n = Bytes.unsafe_get t (to_int_trunc n)
 end
 
 module Bigstring = struct
-  let unsafe_get t n = Bigstring.unsafe_get t (to_int_trunc n)
+  let[@inline always] unsafe_get t n = Bigstring.unsafe_get t (to_int_trunc n)
 end
 
 module O = struct
@@ -129,7 +143,7 @@ end
 
 include O
 
-let splat c =
+let[@inline always] splat c =
   let c = Char.to_int c |> of_int in
   let open O in
   c
@@ -141,3 +155,9 @@ let splat c =
   lor (c lsl 48)
   lor (c lsl 56)
 ;;
+
+module Hex = struct
+  type nonrec t = t
+
+  let sexp_of_t t = Int64.Hex.sexp_of_t (to_int64 t)
+end

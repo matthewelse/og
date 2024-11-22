@@ -127,73 +127,57 @@ module Make (Data : S) = struct
     else exclave_ unsafe_slice ~pos ~len t
   ;;
 
-  let memchr t c : I64.Option.t =
+  let rec memchr_slow_path t c ~offset : I64.Option.t =
     let open I64.O in
+    if offset < t.len
+    then
+      if Char.equal (unsafe_at t offset) c
+      then exclave_ Some offset
+      else exclave_ memchr_slow_path t c ~offset:(offset + #1L)
+    else None
+  ;;
+
+  let rec memchr_fast_path t c mask_c ~offset : I64.Option.t =
     (* Adapted from https://bits.stephan-brumme.com/null.html *)
-    let result = I64.Ref.create_local (-#1L) in
-    let offset = I64.Ref.create_local #0L in
-    let length = length t in
-    let `fast_path =
-      let mask_lo = #0x0101010101010101L in
-      let mask_hi = #0x8080808080808080L in
-      let mask_c = I64.splat c in
-      while !result = -#1L && !offset + #8L <= length do
-        (* FIXME melse: the generated assembly for this seems to load one byte
-           at a time... Is this something to do with alignment? 
+    let open I64.O in
+    let mask_lo = #0x0101010101010101L in
+    let mask_hi = #0x8080808080808080L in
+    if offset + #8L <= t.len
+    then (
+      let bytes = Data.unsafe_get_i64 t.bytes (t.pos + offset) in
+      let with_c_zeros = I64.O.(bytes lxor mask_c) in
+      let res = I64.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi) in
+      if I64.O.(res <> #0L)
+      then (
+        let byte_offset = I64.ctz res lsr 3 in
+        exclave_ Some (offset + I64.of_int byte_offset))
+      else exclave_ memchr_fast_path t c mask_c ~offset:(offset + #8L))
+    else exclave_ memchr_slow_path t c ~offset
+  ;;
 
-           yep, this is the culprit
-           https://github.com/ocaml-flambda/flambda-backend/blob/a6337c2a0f45d0cf321bff571eb437a6027b0e8a/backend/cmm_helpers.ml#L2177
+  let memchr t c : I64.Option.t = exclave_ memchr_fast_path t c (I64.splat c) ~offset:#0L
 
-           Looks like we need to use bigstrings to ensure our buffers are
-           aligned... *)
-        let bytes = Data.unsafe_get_i64 t.bytes (t.pos + !offset) in
-        let with_c_zeros = I64.O.(bytes lxor mask_c) in
-        let res = I64.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi) in
-        if I64.O.(res <> #0L)
-        then (
-          let byte_offset = I64.ctz res lsr 3 in
-          I64.Ref.set result (!offset + I64.of_int byte_offset));
-        I64.Ref.add offset #8L
-      done;
-      `fast_path
-    in
-    let `slow_path =
-      while !result = -#1L && !offset < length do
-        if Char.equal (unsafe_at t !offset) c
-        then I64.Ref.set result !offset
-        else I64.Ref.add offset #1L
-      done;
-      `slow_path
-    in
-    let result = !result in
-    if result = -#1L then None else exclave_ Some result
+  let rec memcmp_slow_path t t' ~offset ~length =
+    let open I64.O in
+    offset = length
+    || (offset < length
+        && Char.equal (unsafe_at t offset) (unsafe_at t' offset)
+        && memcmp_slow_path t t' ~offset:(offset + #1L) ~length)
+  ;;
+
+  let rec memcmp_fast_path t t' ~offset ~length =
+    let open I64.O in
+    if offset + #8L <= length
+    then (
+      let bytes = Data.unsafe_get_i64 t.bytes (t.pos + offset) in
+      let bytes' = Data.unsafe_get_i64 t'.bytes (t'.pos + offset) in
+      bytes = bytes' && memcmp_fast_path t t' ~offset:(offset + #8L) ~length)
+    else memcmp_slow_path t t' ~offset ~length
   ;;
 
   let memcmp (local_ t) (local_ t') =
     let open I64.O in
-    t.len = t'.len
-    &&
-    let result = ref true in
-    let offset = I64.Ref.create_local #0L in
-    let length = t.len in
-    let `fast_path =
-      while Ref.(!result) && !offset + #8L <= length do
-        let bytes = Data.unsafe_get_i64 t.bytes (t.pos + !offset) in
-        let bytes' = Data.unsafe_get_i64 t'.bytes (t'.pos + !offset) in
-        if I64.O.(bytes <> bytes') then result := false;
-        I64.Ref.add offset #8L
-      done;
-      `fast_path
-    in
-    let `slow_path =
-      while Ref.(!result) && !offset < length do
-        if not (Char.equal (unsafe_at t !offset) (unsafe_at t' !offset))
-        then result := false;
-        I64.Ref.add offset #1L
-      done;
-      `slow_path
-    in
-    Ref.(!result)
+    t.len = t'.len && memcmp_fast_path t t' ~offset:#0L ~length:t.len
   ;;
 
   module KMP = struct
@@ -442,6 +426,7 @@ module Make (Data : S) = struct
 
   module Search_pattern = Boyer_moore
 end
+[@@inline always]
 
 module Bytes = struct
   include Make (struct
