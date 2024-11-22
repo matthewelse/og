@@ -4,7 +4,7 @@
   i64s) style `memcmp`/`memchr` in OCaml
 - [x] Boyer-Moore, with memchr for skipping characters
 - [x] Boyer-Moore, not KMP 
-- [x] Custom `Buffered_reader` module, rather than `In_channel.
+- [x] Custom (zero-copy) `Buffered_reader` module, rather than `In_channel.
 - [x] Unboxed `I64.t` ~everywhere on the hot path.
 - [x] Thompson's 'lazy' NFA algorithm.
 - [x] Bitmap for char matching 
