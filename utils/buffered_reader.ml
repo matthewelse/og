@@ -95,14 +95,15 @@ let ensure_slow_path t n =
              ~len:((Bigstring.length t.buf |> I64.of_int) - t.pos - t.len)
          in
          assert (t.len + Slice.Bigstring.length free_space >= n);
-         let res =
+         let got =
            Bigstring_unix.unsafe_read_assume_fd_is_nonblocking
              fd
              (Slice.Bigstring.Expert.bytes free_space)
              ~pos:(Slice.Bigstring.Expert.pos free_space |> I64.to_int_trunc)
              ~len:(Slice.Bigstring.Expert.len free_space |> I64.to_int_trunc)
+           |> Core_unix.Syscall_result.Int.ok_exn
+           |> I64.of_int
          in
-         let got = Core_unix.Syscall_result.Int.ok_exn res |> I64.of_int in
          if got = #0L then raise End_of_file;
          t.len <- t.len + got
        done;
