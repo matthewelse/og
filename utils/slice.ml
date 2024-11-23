@@ -150,7 +150,7 @@ module Make (Data : S) = struct
       let res = I64.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi) in
       if I64.O.(res <> #0L)
       then (
-        let byte_offset = I64.ctz res lsr 3 in
+        let byte_offset = I64.ctz_nonzero res lsr 3 in
         exclave_ Some (offset + I64.of_int byte_offset))
       else exclave_ memchr_fast_path t c mask_c ~offset:(offset + #8L))
     else exclave_ memchr_slow_path t c ~offset

@@ -4,21 +4,16 @@ include Stdlib_upstream_compatible.Int64_u
 type t = int64#
 
 let sexp_of_t t = Int64.sexp_of_t (to_int64 t)
+let[@inline always] ctz t = Ocaml_intrinsics.Int64.count_trailing_zeros (to_int64 t)
+let[@inline always] clz t = Ocaml_intrinsics.Int64.count_leading_zeros (to_int64 t)
 
-(* FIXME: This use of intrinsics might be broken in amd64, which needs special
-handling for n=0. *)
+let[@inline always] ctz_nonzero t =
+  Ocaml_intrinsics.Int64.count_trailing_zeros_nonzero_arg (to_int64 t)
+;;
 
-external ctz
-  :  int64#
-  -> (int[@untagged])
-  = "caml_int64_ctz" "caml_int64_ctz_unboxed_to_untagged"
-[@@noalloc] [@@no_effects] [@@no_coeffects] [@@builtin]
-
-external clz
-  :  int64#
-  -> (int[@untagged])
-  = "caml_int64_clz" "caml_int64_clz_unboxed_to_untagged"
-[@@noalloc] [@@no_effects] [@@no_coeffects] [@@builtin]
+let[@inline always] clz_nonzero t =
+  Ocaml_intrinsics.Int64.count_leading_zeros_nonzero_arg (to_int64 t)
+;;
 
 let[@inline always] to_int_trunc t = to_int t
 let[@inline always] to_int_exn t = Int64.to_int_exn (to_int64 t)
