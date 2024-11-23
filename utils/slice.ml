@@ -541,7 +541,7 @@ module Bigstring = struct
       let[@inline always] unsafe_get t n = unsafe_get t (I64.to_int_trunc n)
       let length t = length t |> I64.of_int
       let of_string s = of_string s
-      let output t channel ~pos ~len = Bigstring_unix.really_output stdout ~pos ~len t
+      let output t channel ~pos ~len = Bigstring_unix.really_output channel ~pos ~len t
     end)
 
   let unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len =
