@@ -160,4 +160,24 @@ let line t ~f =
     result
 ;;
 
+let chunk t ~f =
+  let open I64.O in
+  let rec aux t i =
+    let slice = Slice.Bigstring.unsafe_slice (peek t) ~pos:i ~len:(t.len - i) in
+    match Slice.Bigstring.rmemchr slice '\n' with
+    | None ->
+      ensure t (t.len + #1L);
+      aux t i
+    | Some pos -> pos
+  in
+  match aux t #0L with
+  | exception End_of_file when t.len > #0L -> take_all t f
+  | nl ->
+    (* Consume up to and including the newline. *)
+    let len = nl + #1L in
+    let result = f (Slice.unsafe_create_local t.buf ~pos:t.pos ~len) in
+    consume t (nl + #1L);
+    result
+;;
+
 let stdin ?initial_size ~max_size () = of_fd ?initial_size ~max_size Core_unix.stdin
