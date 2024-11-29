@@ -128,6 +128,13 @@ module Make (Data : S) = struct
     else exclave_ unsafe_slice ~pos ~len t
   ;;
 
+  let slice_from t ~pos =
+    let open I64.O in
+    if pos < #0L || pos >= t.len
+    then None
+    else exclave_ Some (unsafe_slice t ~pos ~len:(t.len - pos))
+  ;;
+
   let rec memchr_slow_path t c ~offset : I64.Option.t =
     let open I64.O in
     if offset < t.len
@@ -157,6 +164,37 @@ module Make (Data : S) = struct
   ;;
 
   let memchr t c : I64.Option.t = exclave_ memchr_fast_path t c (I64.splat c) ~offset:#0L
+
+  let rec rmemchr_slow_path t c ~offset : I64.Option.t =
+    let open I64.O in
+    if offset >= #0L
+    then
+      if Char.equal (unsafe_at t offset) c
+      then exclave_ Some offset
+      else exclave_ rmemchr_slow_path t c ~offset:(offset - #1L)
+    else None
+  ;;
+
+  let rec rmemchr_fast_path t c mask_c ~offset : I64.Option.t =
+    (* Adapted from https://bits.stephan-brumme.com/null.html *)
+    let open I64.O in
+    let mask_lo = #0x0101010101010101L in
+    let mask_hi = #0x8080808080808080L in
+    if offset >= #0L && offset + #8L <= t.len
+    then (
+      let bytes = Data.unsafe_get_i64 t.bytes (t.pos + offset) in
+      let with_c_zeros = I64.O.(bytes lxor mask_c) in
+      let res = I64.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi) in
+      if I64.O.(res <> #0L)
+      then exclave_ rmemchr_slow_path t c ~offset:(offset + #7L)
+      else exclave_ rmemchr_fast_path t c mask_c ~offset:(offset - #8L))
+    else exclave_ rmemchr_slow_path t c ~offset:(min (offset + #8L) (t.len - #1L))
+  ;;
+
+  let rmemchr t c : I64.Option.t = exclave_
+    let open I64.O in
+    rmemchr_fast_path t c (I64.splat c) ~offset:(t.len - #8L)
+  ;;
 
   let rec memcmp_slow_path t t' ~offset ~length =
     let open I64.O in

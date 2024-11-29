@@ -22,6 +22,8 @@ module type S = sig
     }
   [@@deriving globalize, sexp_of]
 
+  include Stringable.S_local_input with type t := t
+
   (** Raises if [pos + len > String.length s]. *)
   val create_local : data -> pos:int64# -> len:int64# -> t @ local
 
@@ -47,15 +49,22 @@ module type S = sig
   (** Raises if [pos + len > length t]. *)
   val slice_exn : t @ local -> pos:int64# -> len:int64# -> t @ local
 
+  val slice_from : t @ local -> pos:int64# -> t option @ local
+
   (** [unsafe_slice t ~pos ~len] is safe if [pos + len <= length t]. *)
   val unsafe_slice : t @ local -> pos:int64# -> len:int64# -> t @ local
 
   (** Returns [true] if the length and contents of the two slices match exactly. *)
   val memcmp : t @ local -> t @ local -> bool
 
+  (** [memchr t x] returns the first index of [c] in [t], if it exists. Returns
+      [None] otherwise. *)
   val memchr : t @ local -> char -> I64.Option.t @ local
-  val of_string : string @ local -> t
-  val to_string : t @ local -> string
+
+  (** [rmemchr t c] returns the _last_ index of [c] in [t], if it exists.
+      Otherwise, it returns [None]. *)
+  val rmemchr : t @ local -> char -> I64.Option.t @ local
+
   val output : t @ local -> Out_channel.t -> unit
   val print_endline : t @ local -> unit
   val iter : t @ local -> f:(char -> unit) @ local -> unit
