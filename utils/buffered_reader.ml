@@ -181,3 +181,12 @@ let chunk t ~f =
 ;;
 
 let stdin ?initial_size ~max_size () = of_fd ?initial_size ~max_size Core_unix.stdin
+
+let is_probably_binary ?(num_bytes_to_read = 1024) t =
+  (try ensure t (I64.of_int num_bytes_to_read) with
+   | End_of_file -> ());
+  let buf = peek t in
+  With_return.with_return (fun { return } ->
+    Slice.iter buf ~f:(fun byte -> if Char.to_int byte >= 128 then return true);
+    false) [@nontail]
+;;
