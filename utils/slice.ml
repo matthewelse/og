@@ -145,25 +145,34 @@ module Make (Data : S) = struct
     else None
   ;;
 
-  let rec memchr_fast_path t c mask_c ~offset : I64.Option.t =
-    (* Adapted from https://bits.stephan-brumme.com/null.html *)
+  let rec memchr_fast_path' t c mask_c ~offset : I64.Option.t = exclave_
+    (* Adapted from https://bits.stephan-brumme.com/null.html. Manually unrolled
+       once. Unrolling more than once doesn't seem not to make much of a
+       difference, nor does using `[@unroll 2]`. *)
     let open I64.O in
     let mask_lo = #0x0101010101010101L in
     let mask_hi = #0x8080808080808080L in
-    if offset + #8L <= t.len
+    if offset + #16L <= t.len
     then (
       let bytes = Data.unsafe_get_i64 t.bytes (t.pos + offset) in
+      let bytes' = Data.unsafe_get_i64 t.bytes (t.pos + offset + #8L) in
       let with_c_zeros = I64.O.(bytes lxor mask_c) in
+      let with_c_zeros' = I64.O.(bytes' lxor mask_c) in
       let res = I64.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi) in
+      let res' = I64.O.((with_c_zeros' - mask_lo) land lnot with_c_zeros' land mask_hi) in
       if I64.O.(res <> #0L)
       then (
         let byte_offset = I64.ctz_nonzero res lsr 3 in
-        exclave_ Some (offset + I64.of_int byte_offset))
-      else exclave_ memchr_fast_path t c mask_c ~offset:(offset + #8L))
-    else exclave_ memchr_slow_path t c ~offset
+        Some (offset + I64.of_int byte_offset))
+      else if I64.O.(res' <> #0L)
+      then (
+        let byte_offset = I64.ctz_nonzero res' lsr 3 in
+        Some (offset + #8L + I64.of_int byte_offset))
+      else memchr_fast_path' t c mask_c ~offset:(offset + #16L))
+    else memchr_slow_path t c ~offset
   ;;
 
-  let memchr t c : I64.Option.t = exclave_ memchr_fast_path t c (I64.splat c) ~offset:#0L
+  let memchr t c : I64.Option.t = exclave_ memchr_fast_path' t c (I64.splat c) ~offset:#0L
 
   let rec rmemchr_slow_path t c ~offset : I64.Option.t =
     let open I64.O in
