@@ -1,3 +1,4 @@
+module Flags = Flags
 module Implementation = Implementation
 module Regex = Regex
 

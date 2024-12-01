@@ -8,4 +8,5 @@
   )
  (inline_tests)
  (preprocess
-  (pps ppx_jane ppx_template ppx_og)))
+  (pps ppx_jane ppx_og ppx_template ppx_optcomp))
+ (preprocessor_deps %{workspace_root}/config.h))

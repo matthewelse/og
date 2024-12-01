@@ -13,3 +13,4 @@ val singleton : Flag.t -> t
 val mem : t -> Flag.t -> bool
 val add : t -> Flag.t -> t
 val empty : t
+val of_list : Flag.t list -> t

@@ -175,7 +175,11 @@ let compile (re : Regex0.t) =
     (fun builder -> aux builder re.re ~initial_state:(Builder.fresh_state builder))
 ;;
 
-let unsafe_get_state (t : t) state = Iarray.unsafe_get t.nfa (State.to_int state)
+let unsafe_get_state (t : t) state =
+  if unsafe_is_safe
+  then Iarray.get t.nfa (State.to_int state)
+  else Iarray.unsafe_get t.nfa (State.to_int state)
+;;
 
 let find_or_add_dstate t dstate =
   Hashtbl.find_or_add t.cache dstate ~default:(fun () -> Charmap.create None)

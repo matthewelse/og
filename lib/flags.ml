@@ -27,3 +27,4 @@ let to_list t =
 ;;
 
 let sexp_of_t t = to_list t |> [%sexp_of: Flag.t list]
+let of_list t = List.fold t ~init:empty ~f:add

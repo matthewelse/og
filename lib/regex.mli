@@ -1,7 +1,7 @@
 open! Core
 open! Import
 
-type t [@@deriving sexp_of]
+type t = Regex0.t [@@deriving sexp_of]
 
 val of_string : string -> t Or_error.t
 
