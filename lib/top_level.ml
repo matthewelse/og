@@ -1,6 +1,37 @@
 open! Core
 open! Import
 
+module Stats = struct
+  type t =
+    { mutable bytes_searched : I64.t
+    ; mutable num_matches : I64.t
+    ; mutable files_searched : I64.t
+    }
+
+  let zero () = { bytes_searched = #0L; num_matches = #0L; files_searched = #0L }
+
+  let[@inline always] on_match t =
+    let open I64.O in
+    t.num_matches <- t.num_matches + #1L
+  ;;
+
+  let[@inline always] add_bytes_searched t bytes =
+    let open I64.O in
+    t.bytes_searched <- t.bytes_searched + bytes
+  ;;
+
+  let on_file_searched t =
+    let open I64.O in
+    t.files_searched <- t.files_searched + #1L
+  ;;
+
+  let dump t =
+    print_endline [%string "files searched: %{t.files_searched#I64}"];
+    print_endline [%string "bytes searched: %{t.bytes_searched#I64}"];
+    print_endline [%string "matches: %{t.num_matches#I64}"]
+  ;;
+end
+
 let main
   ~pattern
   ~count
@@ -17,52 +48,34 @@ let main
     | "-" -> Stdin
     | input_source -> Files_recursively_under input_source
   in
-  let%bind regex = Regex.of_string pattern in
-  let compiled = Regex.compile ?impl regex in
-  let num_matches = ref 0 in
-  let bytes_read = I64.Ref.create #0L in
+  let search_pattern = Slice.Search_pattern.create (Slice.of_string pattern) in
+  let stats = Stats.zero () in
   Source.iter source ~buffer_size ~max_buffer_size ~f:(fun path reader ->
-    let local_ file_matches = ref 0 in
-    let local_ line_number = ref 0 in
+    Stats.on_file_searched stats;
     while
       try
-        Buffered_reader.line reader ~f:(fun line ->
-          incr line_number;
-          I64.Ref.add bytes_read (Slice.length line);
-          if Regex.Compiled.matches compiled line
-          then (
-            incr file_matches;
-            incr num_matches;
-            if (not count) && not quiet
-            then (
-              if !file_matches = 1
-              then (
-                if !num_matches > !file_matches then print_endline "";
-                print_endline path);
-              print_endline [%string "%{!line_number#Int}: %{line#Slice}"])
-            else if not quiet
-            then (
-              print_string path;
-              Stdlib.print_int !line_number;
-              print_string ": ";
-              Slice.output line stdout;
-              Out_channel.newline stdout));
-          true)
+        Buffered_reader.chunk reader ~f:(fun [@inline always] chunk ->
+          Stats.add_bytes_searched stats (Slice.length chunk);
+          Slice.Search_pattern.indexes
+            search_pattern
+            chunk
+            ~f:(fun [@inline always] match_offset_within_slice ->
+              let open I64.O in
+              Stats.on_match stats;
+              (* TODO: If [match_offset_within_file > last_newline_offset], we're on a
+                 new line, so increase the number of matched lines.
+
+                 Then, [memchr] until we find the next newline (or the end of
+                 the buffer, which is implicitly a newline, and update that.) *)
+              ()));
+        true
       with
       | End_of_file -> false
     do
       ()
     done);
-  if show_stats
-  then (
-    let bytes_read = I64.Ref.get bytes_read in
-    print_endline [%string "%{!num_matches#Int} matches"];
-    print_endline [%string "%{bytes_read#I64} bytes read"]);
-  if !num_matches > 0
-  then (
-    if count then print_endline (Int.to_string !num_matches);
-    Ok ())
-  else Or_error.error_string "no matches"
+  Stats.dump stats;
+  0
 ;;
 
 let command =
@@ -95,13 +108,14 @@ let command =
       and show_stats = flag "show-stats" no_arg ~doc:" show stats"
       and quiet = flag "quiet" no_arg ~doc:" don't write anything to stdout" in
       fun () ->
-        main
-          ~pattern
-          ~count
-          ~impl
-          ~buffer_size
-          ~max_buffer_size
-          ~input_source
-          ~show_stats
-          ~quiet]
+        Stdlib.exit
+        @@ main
+             ~pattern
+             ~count
+             ~impl
+             ~buffer_size
+             ~max_buffer_size
+             ~input_source
+             ~show_stats
+             ~quiet]
 ;;
