@@ -67,10 +67,10 @@ let ensure_slow_path t n =
         (* [n] bytes won't fit. We need to resize the buffer. *)
         let new_size = max n (min t.max_size (cap * #2L)) in
         let new_buf = Bigstring.create (I64.to_int_trunc new_size) in
-        Slice.Bigstring.unsafe_blit
+        Slice.unsafe_blit
           ~src:(peek t)
           ~src_pos:0
-          ~dst:(Slice.Bigstring.create_local new_buf ~pos:#0L ~len:new_size)
+          ~dst:(Slice.create_local new_buf ~pos:#0L ~len:new_size)
           ~dst_pos:0
           ~len:(I64.to_int_trunc t.len);
         t.pos <- #0L;
@@ -78,10 +78,10 @@ let ensure_slow_path t n =
       else if t.pos + n > cap
       then (
         (* [n] bytes will fit in the existing buffer, but we need to compact it first. *)
-        Slice.Bigstring.unsafe_blit
+        Slice.unsafe_blit
           ~src:(peek t)
           ~src_pos:0
-          ~dst:(Slice.Bigstring.create_local t.buf ~pos:#0L ~len:t.len)
+          ~dst:(Slice.create_local t.buf ~pos:#0L ~len:t.len)
           ~dst_pos:0
           ~len:(I64.to_int_trunc t.len);
         t.pos <- #0L)
@@ -89,18 +89,18 @@ let ensure_slow_path t n =
     (try
        while t.len < n do
          let free_space =
-           Slice.Bigstring.create_local
+           Slice.create_local
              t.buf
              ~pos:(t.pos + t.len)
              ~len:((Bigstring.length t.buf |> I64.of_int) - t.pos - t.len)
          in
-         assert (t.len + Slice.Bigstring.length free_space >= n);
+         assert (t.len + Slice.length free_space >= n);
          let got =
            Bigstring_unix.unsafe_read_assume_fd_is_nonblocking
              fd
-             (Slice.Bigstring.Expert.bytes free_space)
-             ~pos:(Slice.Bigstring.Expert.pos free_space |> I64.to_int_trunc)
-             ~len:(Slice.Bigstring.Expert.len free_space |> I64.to_int_trunc)
+             (Slice.Expert.bytes free_space)
+             ~pos:(Slice.Expert.pos free_space |> I64.to_int_trunc)
+             ~len:(Slice.Expert.len free_space |> I64.to_int_trunc)
            |> Core_unix.Syscall_result.Int.ok_exn
            |> I64.of_int
          in
@@ -142,8 +142,8 @@ let line t ~f =
   let open I64.O in
   (* Return the index of the first '\n', reading more data as needed. *)
   let rec aux t i =
-    let slice = Slice.Bigstring.unsafe_slice (peek t) ~pos:i ~len:(t.len - i) in
-    match Slice.Bigstring.memchr slice '\n' with
+    let slice = Slice.unsafe_slice (peek t) ~pos:i ~len:(t.len - i) in
+    match Slice.memchr slice '\n' with
     | None ->
       ensure t (t.len + #1L);
       aux t i
@@ -163,8 +163,8 @@ let line t ~f =
 let chunk t ~f =
   let open I64.O in
   let rec aux t i =
-    let slice = Slice.Bigstring.unsafe_slice (peek t) ~pos:i ~len:(t.len - i) in
-    match Slice.Bigstring.rmemchr slice '\n' with
+    let slice = Slice.unsafe_slice (peek t) ~pos:i ~len:(t.len - i) in
+    match Slice.rmemchr slice '\n' with
     | None ->
       ensure t (t.len + #1L);
       aux t i

@@ -2,11 +2,13 @@
  (name og_utils)
  (inline_tests)
  (preprocess
-  (pps ppx_jane ppx_og ppx_template))
+  (pps ppx_jane ppx_og ppx_template ppx_optcomp))
+ (preprocessor_deps %{workspace_root}/config.h)
  (libraries
   core
   core_unix
   core_unix.bigstring_unix
+  expect_test_helpers_core
   stdlib_stable
   stdlib_upstream_compatible
   ;;

@@ -1,11 +1,6 @@
 (env
  (release
-  (ocamlopt_flags
-   :standard
-   -O3
-   -g
-   -gno-upstream-dwarf
-   -gstartup
+  (ocamlopt_flags :standard -O3 -g -gno-upstream-dwarf -gstartup
    -gdwarf-may-alter-codegen))
  (dev
   (ocamlopt_flags
@@ -16,3 +11,10 @@
    ; these another time.
    ; -gstartup -gdwarf-may-alter-codegen
    )))
+
+(rule
+ (targets config.h)
+ (action
+  (with-stdout-to
+   config.h
+   (run echo "#define DUNE_BUILD_PROFILE \"%{profile}\""))))

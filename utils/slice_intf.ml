@@ -89,11 +89,5 @@ module type S_mutable = sig
 end
 
 module type Slice = sig
-  module Bytes : S_mutable with type data := bytes
-  module Bigstring : S_mutable with type data := Bigstring.t
-  module String : S with type data := string
-
-  include module type of struct
-    include Bigstring
-  end
+  include S_mutable with type data := Bigstring.t
 end
