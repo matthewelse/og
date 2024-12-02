@@ -34,15 +34,14 @@ end
 
 let main
   ~pattern
-  ~count
-  ~impl
+  ~count:_
+  ~impl:_
   ~buffer_size
   ~max_buffer_size
   ~input_source
-  ~show_stats
-  ~quiet
+  ~show_stats:_
+  ~quiet:_
   =
-  let open Or_error.Let_syntax in
   let source : Source.t =
     match input_source with
     | "-" -> Stdin
@@ -50,7 +49,7 @@ let main
   in
   let search_pattern = Slice.Search_pattern.create (Slice.of_string pattern) in
   let stats = Stats.zero () in
-  Source.iter source ~buffer_size ~max_buffer_size ~f:(fun path reader ->
+  Source.iter source ~buffer_size ~max_buffer_size ~f:(fun _path reader ->
     Stats.on_file_searched stats;
     while
       try
@@ -59,8 +58,7 @@ let main
           Slice.Search_pattern.indexes
             search_pattern
             chunk
-            ~f:(fun [@inline always] match_offset_within_slice ->
-              let open I64.O in
+            ~f:(fun [@inline always] _match_offset_within_slice ->
               Stats.on_match stats;
               (* TODO: If [match_offset_within_file > last_newline_offset], we're on a
                  new line, so increase the number of matched lines.

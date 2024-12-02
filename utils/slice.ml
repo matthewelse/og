@@ -19,20 +19,18 @@ module Data = struct
     = "%caml_bigstring_get64u#_indexed_by_int64#"
   [@@noalloc]
 
-  let get_i64_exn t n =
-    let open I64.O in
-    if n < #0L || n >= I64.of_int (length t)
-    then (
-      (* FIXME: this is a limitation of the compiler *)
-      match failwith "[get_i64]: bounds check failed" with
-      | (_ : Nothing.t) -> .)
-    else unsafe_get_i64 t n
+  let[@inline always] unsafe_get_i64 t n =
+    [%debug_assert I64.O.(n >= #0L && n < I64.of_int (length t))];
+    unsafe_get_i64 t n
   ;;
 
-  let unsafe_get_i64 = if Config.unsafe_is_safe then get_i64_exn else unsafe_get_i64
-  let[@inline always] get_exn t n = get t (I64.to_int_trunc n)
   let[@inline always] unsafe_get t n = unsafe_get t (I64.to_int_trunc n)
-  let unsafe_get = if Config.unsafe_is_safe then get_exn else unsafe_get
+
+  let unsafe_get t n =
+    [%debug_assert I64.O.(n >= #0L && n < I64.of_int (length t))];
+    unsafe_get t n
+  ;;
+
   let length t = length t |> I64.of_int
   let of_string s = of_string s
   let output t channel ~pos ~len = Bigstring_unix.really_output channel ~pos ~len t
@@ -81,13 +79,13 @@ let check_bounds t =
 
 let unsafe_create bytes ~pos ~len =
   let t = { bytes; pos; len } in
-  if Config.unsafe_is_safe then check_bounds t;
+  [%debug_run check_bounds t];
   t
 ;;
 
 let unsafe_create_local bytes ~pos ~len = exclave_
   let t = { bytes; pos; len } in
-  if Config.unsafe_is_safe then check_bounds t;
+  [%debug_run check_bounds t];
   t
 ;;
 
@@ -126,7 +124,8 @@ let at (local_ t) ix =
 
 let unsafe_at (local_ t) ix =
   let open I64.O in
-  if Config.unsafe_is_safe then at_exn t ix else Data.unsafe_get t.bytes (t.pos + ix)
+  [%debug_assert I64.O.(ix < t.len && ix >= #0L)];
+  Data.unsafe_get t.bytes (t.pos + ix)
 ;;
 
 let iter t ~f =
@@ -146,7 +145,7 @@ let iteri t ~f =
 let[@inline always] unsafe_slice t ~pos ~len = exclave_
   let open I64.O in
   let t = { t with pos = t.pos + pos; len } in
-  if Config.unsafe_is_safe then check_bounds t;
+  [%debug_run check_bounds t];
   t
 ;;
 

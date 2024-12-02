@@ -11,10 +11,3 @@
    ; these another time.
    ; -gstartup -gdwarf-may-alter-codegen
    )))
-
-(rule
- (targets config.h)
- (action
-  (with-stdout-to
-   config.h
-   (run echo "#define DUNE_BUILD_PROFILE \"%{profile}\""))))

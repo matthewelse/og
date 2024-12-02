@@ -176,9 +176,8 @@ let compile (re : Regex0.t) =
 ;;
 
 let unsafe_get_state (t : t) state =
-  if unsafe_is_safe
-  then Iarray.get t.nfa (State.to_int state)
-  else Iarray.unsafe_get t.nfa (State.to_int state)
+  [%debug_assert State.to_int state >= 0 && State.to_int state < Iarray.length t.nfa];
+  Iarray.unsafe_get t.nfa (State.to_int state)
 ;;
 
 let find_or_add_dstate t dstate =

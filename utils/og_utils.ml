@@ -9,4 +9,3 @@ module Slice = Slice
 
 let sexp_of_iarray = Iarray.sexp_of_t
 let todo () = failwith "TODO"
-let unsafe_is_safe = Config.unsafe_is_safe
