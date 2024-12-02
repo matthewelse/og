@@ -12,6 +12,17 @@ module Rule = struct
     | Rep1 of t
     | Seq of t list
   [@@deriving sexp_of]
+
+  let rep t = Or (Rep1 t, Seq [])
+
+  let rec or_list ts =
+    match ts with
+    | [] -> Group []
+    | [ t ] -> t
+    | t :: ts -> Or (t, or_list ts)
+  ;;
+
+  let nothing = Neg_group Char.all
 end
 
 type t =

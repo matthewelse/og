@@ -6,8 +6,6 @@ type t =
   | Files_recursively_under of string
 [@@deriving sexp_of]
 
-val should_ignore : string -> bool
-
 val iter
   :  t
   -> buffer_size:int

@@ -9,3 +9,6 @@
  (inline_tests)
  (preprocess
   (pps ppx_jane ppx_template ppx_og -mode -- %{profile})))
+
+(ocamllex
+ (modules glob))

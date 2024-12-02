@@ -6,7 +6,7 @@ type t = int list [@@deriving compare, hash]
 
 let empty = []
 
-let rec singleton i =
+let[@tail_mod_cons] rec singleton i =
   if i < 0
   then failwith "i must be greater than 0"
   else if i < 63
@@ -15,7 +15,7 @@ let rec singleton i =
 ;;
 
 let add t i =
-  let rec add_inner t i =
+  let[@tail_mod_cons] rec add_inner t i =
     match t with
     | [] -> singleton i
     | hd :: tl -> if i < 63 then (hd lor (1 lsl i)) :: tl else hd :: add_inner tl (i - 63)
