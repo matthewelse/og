@@ -43,6 +43,8 @@ module type S = sig
   (** [at t pos] returns [None] if [pos < 0 || pos >= length t]. *)
   val at : t @ local -> int64# -> local_ char option
 
+  val unsafe_at : t @ local -> int64# -> char
+
   (** Returns [None] if [pos + len > length t]. *)
   val slice : t @ local -> pos:int64# -> len:int64# -> t option @ local
 
