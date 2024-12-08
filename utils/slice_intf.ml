@@ -37,13 +37,13 @@ module type S = sig
   val unsafe_create_local : data -> pos:int64# -> len:int64# -> t @ local
   val length : t @ local -> int64#
 
-  (** [at_exn t pos] raises if [pos < 0 || pos >= length t]. *)
-  val at_exn : t @ local -> int64# -> char
+  (** [get_exn t pos] raises if [pos < 0 || pos >= length t]. *)
+  val get_exn : t @ local -> int64# -> char
 
-  (** [at t pos] returns [None] if [pos < 0 || pos >= length t]. *)
-  val at : t @ local -> int64# -> local_ char option
+  (** [get t pos] returns [None] if [pos < 0 || pos >= length t]. *)
+  val get : t @ local -> int64# -> local_ char option
 
-  val unsafe_at : t @ local -> int64# -> char
+  val unsafe_get : t @ local -> int64# -> char
 
   (** Returns [None] if [pos + len > length t]. *)
   val slice : t @ local -> pos:int64# -> len:int64# -> t option @ local

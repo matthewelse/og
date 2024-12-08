@@ -108,21 +108,21 @@ let of_string s =
 
 let length t = t.len
 
-let at_exn (local_ t) ix =
+let get_exn (local_ t) ix =
   let open I64.O in
   if ix >= t.len || ix < #0L
   then failwith "index out of bounds"
   else Data.unsafe_get t.bytes (t.pos + ix)
 ;;
 
-let at (local_ t) ix =
+let get (local_ t) ix =
   let open I64.O in
   if ix >= t.len || ix < #0L
   then None
   else exclave_ Some (Data.unsafe_get t.bytes (t.pos + ix))
 ;;
 
-let unsafe_at (local_ t) ix =
+let unsafe_get (local_ t) ix =
   let open I64.O in
   [%debug_assert I64.O.(ix < t.len && ix >= #0L)];
   Data.unsafe_get t.bytes (t.pos + ix)
@@ -174,7 +174,7 @@ let rec memchr_slow_path t c ~offset : I64.Option.t =
   let open I64.O in
   if offset < t.len
   then
-    if Char.equal (unsafe_at t offset) c
+    if Char.equal (unsafe_get t offset) c
     then exclave_ Some offset
     else exclave_ memchr_slow_path t c ~offset:(offset + #1L)
   else None
@@ -213,7 +213,7 @@ let rec rmemchr_slow_path t c ~offset : I64.Option.t =
   let open I64.O in
   if offset >= #0L
   then
-    if Char.equal (unsafe_at t offset) c
+    if Char.equal (unsafe_get t offset) c
     then exclave_ Some offset
     else exclave_ rmemchr_slow_path t c ~offset:(offset - #1L)
   else None
@@ -244,7 +244,7 @@ let rec memcmp_slow_path t t' ~offset ~length =
   let open I64.O in
   offset = length
   || (offset < length
-      && Char.equal (unsafe_at t offset) (unsafe_at t' offset)
+      && Char.equal (unsafe_get t offset) (unsafe_get t' offset)
       && memcmp_slow_path t t' ~offset:(offset + #1L) ~length)
 ;;
 
@@ -290,10 +290,10 @@ module KMP = struct
         let local_ k = I64.Ref.create_local #0L in
         for i = 1 to Int.(length - 1) do
           let i = I64.of_int i in
-          while !k > #0L && not (Char.equal (at_exn pattern !k) (at_exn pattern i)) do
+          while !k > #0L && not (Char.equal (get_exn pattern !k) (get_exn pattern i)) do
             I64.Ref.set k (I64.Array.get offsets (!k - #1L))
           done;
-          if Char.equal (at_exn pattern !k) (at_exn pattern i) then I64.Ref.incr k;
+          if Char.equal (get_exn pattern !k) (get_exn pattern i) then I64.Ref.incr k;
           I64.Array.set offsets i !k
         done)
     in
@@ -310,10 +310,10 @@ module KMP = struct
     else (
       let local_ q = I64.Ref.create_local #0L in
       for%i64 i = #0L to length haystack - #1L do
-        while !q > #0L && not (Char.equal (at_exn t.pattern !q) (at_exn haystack i)) do
+        while !q > #0L && not (Char.equal (get_exn t.pattern !q) (get_exn haystack i)) do
           I64.Ref.set q (I64.Iarray.get t.offsets (!q - #1L))
         done;
-        if Char.equal (at_exn t.pattern !q) (at_exn haystack i) then incr q;
+        if Char.equal (get_exn t.pattern !q) (get_exn haystack i) then incr q;
         if !q = length t.pattern
         then (
           f (i - length t.pattern + #1L);
@@ -368,7 +368,7 @@ module BMH = struct
       if memcmp haystack_slice t.pattern then f offset;
       let last_character_of_haystack_slice =
         (* SAFETY: [haystack_slice] has length [t.pattern.len] *)
-        unsafe_at haystack_slice (t.pattern.len - #1L)
+        unsafe_get haystack_slice (t.pattern.len - #1L)
       in
       let offset = offset + get_jump t last_character_of_haystack_slice in
       indexes_from t haystack ~f ~offset
@@ -467,7 +467,7 @@ module Boyer_moore = struct
         match slice haystack ~pos:!offset ~len:(length haystack - !offset) with
         | None -> false
         | Some slice ->
-          (match memchr slice (unsafe_at t.pattern (length t.pattern - #1L)) with
+          (match memchr slice (unsafe_get t.pattern (length t.pattern - #1L)) with
            | None -> false
            | Some step_by ->
              I64.Ref.add offset step_by;
@@ -476,7 +476,9 @@ module Boyer_moore = struct
         let local_ pattern_offset = I64.Ref.create_local (length t.pattern - #1L) in
         while
           !pattern_offset >= #0L
-          && Char.equal (unsafe_at t.pattern !pattern_offset) (unsafe_at haystack !offset)
+          && Char.equal
+               (unsafe_get t.pattern !pattern_offset)
+               (unsafe_get haystack !offset)
         do
           (* Search right to left through the pattern/haystack *)
           I64.Ref.decr pattern_offset;
@@ -494,7 +496,7 @@ module Boyer_moore = struct
             (max
                (Iarray.unsafe_get
                   t.bad_character
-                  (Char.to_int (unsafe_at haystack !offset)))
+                  (Char.to_int (unsafe_get haystack !offset)))
                (I64.Iarray.unsafe_get t.bad_suffix !pattern_offset))
       done)
   ;;

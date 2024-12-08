@@ -139,16 +139,7 @@ let matches_string t string =
     string
 ;;
 
-let matches_slice t slice =
-  matches_stringy
-    (module struct
-      include Slice
-
-      let unsafe_get = unsafe_at
-    end)
-    t
-    slice
-;;
+let matches_slice t slice = matches_stringy (module Slice) t slice
 
 let%expect_test "check string matching" =
   let strings = [ "meet"; "meat"; "eating"; "tiny"; "in"; "eat" ] in

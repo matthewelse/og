@@ -7,7 +7,7 @@ let array_ix c = Char.to_int c land 3
 let bit_ix c = Char.to_int c lsr 2
 let bit c = I64.O.(#1L lsl bit_ix c)
 
-let of_list cs =
+let of_list cs : t =
   Iarray.construct__bits64 ~len:4 ~default:#0L ~f:(fun arr ->
     List.iter cs ~f:(fun c ->
       let ix = array_ix c in

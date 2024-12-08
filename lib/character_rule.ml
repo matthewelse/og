@@ -11,16 +11,16 @@ type t =
 let matches t ~input ~offset : I64.Option.t =
   match t with
   | Class character_class ->
-    (match Slice.at input offset with
+    (match Slice.get input offset with
      | None -> None
      | Some c -> if Character_class.matches character_class c then Some #1L else None)
   | One_of chars ->
-    (match Slice.at input offset with
+    (match Slice.get input offset with
      | None -> None
      | Some c ->
        if Iarray.exists_local chars ~f:(fun c' -> Char.equal c c') then Some #1L else None)
   | Not_one_of chars ->
-    (match Slice.at input offset with
+    (match Slice.get input offset with
      | None -> None
      | Some c ->
        if not (Iarray.exists_local chars ~f:(fun c' -> Char.equal c c'))

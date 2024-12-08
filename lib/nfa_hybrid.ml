@@ -204,7 +204,7 @@ let rec eval_inner t (local_ input) ~offset ~dstate ~generation ~state_generatio
   (DState.mem dstate t.accepting_state
    && ((not (Flags.mem t.flags Require_eol)) || offset = Slice.length input))
   ||
-  match Slice.at input offset with
+  match Slice.get input offset with
   | None -> false
   | Some c ->
     let dstate =
