@@ -1,4 +1,5 @@
 open! Core
+open! Unboxed
 open! Import
 
 module Builder = struct
@@ -69,10 +70,10 @@ type t =
 
 let of_builder (builder : Builder.t) =
   let failure_links =
-    Iarray.construct
+    Iarray.create
       ~len:(Trie.num_states builder.trie)
-      ~default:Trie.root_state
-      ~f:(fun failure_links ->
+      Trie.root_state
+      ~mutate:(fun failure_links ->
         for i = 0 to Array.length failure_links - 1 do
           let failure_link =
             Hashtbl.find_exn builder.failure_links (Trie.Id.of_int_exn i)
@@ -81,13 +82,10 @@ let of_builder (builder : Builder.t) =
         done)
   in
   let output_links =
-    Iarray.construct
-      ~len:(Trie.num_states builder.trie)
-      ~default:[::]
-      ~f:(fun output_links ->
-        Hashtbl.iteri builder.output_links ~f:(fun ~key:from_state ~data:to_states ->
-          output_links.(Trie.Id.to_int_exn from_state) <- Iarray.of_list to_states) [@nontail
-                                                                                      ])
+    Iarray.create ~len:(Trie.num_states builder.trie) [::] ~mutate:(fun output_links ->
+      Hashtbl.iteri builder.output_links ~f:(fun ~key:from_state ~data:to_states ->
+        output_links.(Trie.Id.to_int_exn from_state) <- Iarray.of_list to_states)
+      [@nontail])
   in
   { trie = builder.trie; failure_links; output_links }
 ;;
@@ -112,10 +110,11 @@ let[@inline always] matches_stringy
   t
   (string : s)
   =
+  let open I64.O in
   let local_ state : Trie.Id.t ref = ref Trie.root_state in
   let local_ index = I64.Ref.create_local #0L in
-  while I64.O.(!index < Stringy.length string) && not (is_accepting_state t !state) do
-    let c = Stringy.unsafe_get string I64.O.(!index) in
+  while I64.Ref.O.(!index < Stringy.length string) && not (is_accepting_state t !state) do
+    let c = Stringy.unsafe_get string I64.Ref.O.(!index) in
     let next_state = Trie.next_state t.trie !state c in
     if Trie.Id.equal next_state Trie.root_state
        && not (Trie.Id.equal !state Trie.root_state)

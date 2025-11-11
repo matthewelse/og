@@ -18,54 +18,41 @@ let%expect_test "regular expression matching" =
       "abc"
       ~ok_inputs:[ "abc"; "   abc"; "abcabc" ]
       ~error_inputs:[ "a"; "ab"; "abd"; "ab c"; "" ];
-    ([%expect
-       {| |}];
+    ([%expect {| |}];
      test "a|bc" ~ok_inputs:[ "a"; "bc"; "abc"; "ab" ] ~error_inputs:[ "b"; "c"; "" ];
-     [%expect
-       {| |}];
+     [%expect {| |}];
      test
        "[abc]"
        ~ok_inputs:[ "a"; "b"; "c"; "aaabbbccc"; "abc" ]
        ~error_inputs:[ ""; "d" ];
-     [%expect
-       {| |}];
+     [%expect {| |}];
      test "[^abc]" ~ok_inputs:[ "d"; "da" ] ~error_inputs:[ "a"; "b"; "c"; "abc" ];
-     [%expect
-       {| |}];
+     [%expect {| |}];
      test "\\d" ~ok_inputs:[ "012345678"; "1"; "9"; "a9" ] ~error_inputs:[ "a" ];
-     [%expect
-       {| |}];
+     [%expect {| |}];
      test "\\w" ~ok_inputs:[ "a"; "0"; "a." ] ~error_inputs:[ "."; "\\" ];
-     [%expect
-       {| |}];
+     [%expect {| |}];
      test "a?bc" ~ok_inputs:[ "abc"; "bc"; "aabc" ] ~error_inputs:[ "a"; "b"; "c" ];
-     [%expect
-       {| |}];
+     [%expect {| |}];
      test "a+bc" ~ok_inputs:[ "aabc" ] ~error_inputs:[ "bc" ];
-     [%expect
-       {| |}];
+     [%expect {| |}];
      test "(abc)+" ~ok_inputs:[ "abc"; "abcabc" ] ~error_inputs:[ ""; "a"; "ab" ];
-     [%expect
-       {| |}];
+     [%expect {| |}];
      test "^abc$" ~ok_inputs:[ "abc" ] ~error_inputs:[ ""; " abc"; "abc "; " abc " ];
-     [%expect
-       {| |}];
+     [%expect {| |}];
      test
        "nananax?x"
        ~ok_inputs:[ "nananax"; "nananaxx"; "nanananaxx" ]
        ~error_inputs:[ "nanana" ];
-     [%expect
-       {| |}];
+     [%expect {| |}];
      test
        "^#?i?n?c?l?u?d?e?"
        ~ok_inputs:
          [ ""; "include"; "#include"; "i"; "n"; "c"; "l"; "u"; "d"; "e"; "  #include" ]
        ~error_inputs:[];
-     [%expect
-       {| |}];
+     [%expect {| |}];
      test "^[]$" ~ok_inputs:[] ~error_inputs:[ ""; "[]"; "[] "; " []"; "a"; "][" ];
-     [%expect
-       {| |}]
+     [%expect {| |}]
      : unit))
 ;;
 
@@ -110,6 +97,5 @@ let%expect_test "regression test: `nfa_hybrid` bug" =
     |}];
   Expect_test_helpers_core.require_does_not_raise (fun () ->
     Og.Regex.Compiled.matches regex slice |> (ignore : bool -> unit));
-  [%expect
-    {| |}]
+  [%expect {| |}]
 ;;

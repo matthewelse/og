@@ -2,6 +2,7 @@
 (* Adapted from [Dune_glob]. *)
 
 open! Core 
+open! Unboxed
 
 type t = Regex0.Rule.t
 [@@deriving sexp_of]

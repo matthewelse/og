@@ -1,4 +1,5 @@
 open! Core
+open Unboxed
 
 module type Search = sig
   type slice
@@ -13,8 +14,8 @@ end
 module type S = sig
   type data
 
-  (** A value of [t] can always be assumed to contain a valid range, i.e. [pos
-    >= 0], [len >= 0] and [pos + len <= String.length bytes]. *)
+  (** A value of [t] can always be assumed to contain a valid range, i.e. [pos >= 0],
+      [len >= 0] and [pos + len <= String.length bytes]. *)
   type t = private
     { global_ bytes : data
     ; pos : int64#
@@ -30,8 +31,8 @@ module type S = sig
   (** Identical behaviour to [create_local], but allocates [t] globally. *)
   val create : data -> pos:int64# -> len:int64# -> t
 
-  (** Like [create], but the user is responsible for maintaining the invariants
-      enforced in [check_bounds]. *)
+  (** Like [create], but the user is responsible for maintaining the invariants enforced
+      in [check_bounds]. *)
   val unsafe_create : data -> pos:int64# -> len:int64# -> t
 
   val unsafe_create_local : data -> pos:int64# -> len:int64# -> t @ local
@@ -59,12 +60,12 @@ module type S = sig
   (** Returns [true] if the length and contents of the two slices match exactly. *)
   val memcmp : t @ local -> t @ local -> bool
 
-  (** [memchr t x] returns the first index of [c] in [t], if it exists. Returns
-      [None] otherwise. *)
+  (** [memchr t x] returns the first index of [c] in [t], if it exists. Returns [None]
+      otherwise. *)
   val memchr : t @ local -> char -> I64.Option.t @ local
 
-  (** [rmemchr t c] returns the _last_ index of [c] in [t], if it exists.
-      Otherwise, it returns [None]. *)
+  (** [rmemchr t c] returns the _last_ index of [c] in [t], if it exists. Otherwise, it
+      returns [None]. *)
   val rmemchr : t @ local -> char -> I64.Option.t @ local
 
   val output : t @ local -> Out_channel.t -> unit

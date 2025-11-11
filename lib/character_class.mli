@@ -1,4 +1,5 @@
 open! Core
+open! Unboxed
 open! Import
 
 type t =
@@ -6,6 +7,5 @@ type t =
   | Numeric
 [@@deriving sexp_of]
 
-(** [matches t c] returns [true] if [c] is a member of the specified character
-    class. *)
+(** [matches t c] returns [true] if [c] is a member of the specified character class. *)
 val matches : t -> char -> bool

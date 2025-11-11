@@ -1,4 +1,5 @@
 open! Core
+open Unboxed
 
 (* Adapted from [Eio.Buf_read]. *)
 
@@ -65,7 +66,7 @@ let ensure_slow_path t n =
       if n > cap
       then (
         (* [n] bytes won't fit. We need to resize the buffer. *)
-        let new_size = max n (min t.max_size (cap * #2L)) in
+        let new_size = I64.max n (I64.min t.max_size (cap * #2L)) in
         let new_buf = Bigstring.create (I64.to_int_trunc new_size) in
         Slice.unsafe_blit
           ~src:(peek t)
@@ -121,7 +122,7 @@ let ensure t n =
 
 let unsafe_get t i =
   let open I64.O in
-  I64.Bigstring.unsafe_get t.buf (t.pos + i)
+  Bigstring.unsafe_get t.buf (t.pos + i |> I64.to_int_trunc)
 ;;
 
 let take_all t f =
@@ -143,7 +144,7 @@ let line t ~f =
   (* Return the index of the first '\n', reading more data as needed. *)
   let rec aux t i =
     let slice = Slice.unsafe_slice (peek t) ~pos:i ~len:(t.len - i) in
-    match Slice.memchr slice '\n' with
+    match%optional_u.I64.Option Slice.memchr slice '\n' with
     | None ->
       ensure t (t.len + #1L);
       aux t i
@@ -164,7 +165,7 @@ let chunk t ~f =
   let open I64.O in
   let rec aux t i =
     let slice = Slice.unsafe_slice (peek t) ~pos:i ~len:(t.len - i) in
-    match Slice.rmemchr slice '\n' with
+    match%optional_u.I64.Option Slice.rmemchr slice '\n' with
     | None ->
       ensure t (t.len + #1L);
       aux t i
@@ -188,5 +189,6 @@ let is_probably_binary ?(num_bytes_to_read = 1024) t =
   let buf = peek t in
   With_return.with_return (fun { return } ->
     Slice.iter buf ~f:(fun byte -> if Char.to_int byte >= 128 then return true);
-    false) [@nontail]
+    false)
+  [@nontail]
 ;;

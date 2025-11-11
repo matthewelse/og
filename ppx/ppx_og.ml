@@ -1,5 +1,5 @@
-open! Base
-open Ppxlib
+open Base
+open! Ppxlib
 
 let for_unboxed =
   Extension.declare
@@ -71,7 +71,7 @@ let () =
 ;;
 
 let () =
-  Driver.V2.register_transformation
+  Driver.register_transformation
     ~extensions:[ for_unboxed; debug_assert; debug_run ]
     "ppx_og"
 ;;

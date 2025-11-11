@@ -1,4 +1,5 @@
 open! Core
+open! Unboxed
 open! Import
 include Nfa_base
 
@@ -13,11 +14,11 @@ let eval_at t input ~offset =
         match rule with
         | None -> eval_inner t input ~offset ~current_state:target
         | Some rule ->
-          (match Character_rule.matches rule ~input ~offset with
+          (match%optional_u.I64.Option Character_rule.matches rule ~input ~offset with
            | None -> false
            | Some consumed ->
-             eval_inner t input ~offset:(offset + consumed) ~current_state:target)) [@nontail
-                                                                                      ])
+             eval_inner t input ~offset:(offset + consumed) ~current_state:target))
+      [@nontail])
   in
   eval_inner t input ~current_state:(initial_state t) ~offset
 ;;
@@ -41,6 +42,7 @@ let eval t input =
       With_return.with_return (fun { return } ->
         Slice.Search_pattern.indexes l input ~f:(fun offset ->
           if eval_from t input ~offset then return true);
-        false) [@nontail]
+        false)
+      [@nontail]
     | _ -> eval_from t input ~offset:#0L)
 ;;

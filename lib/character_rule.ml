@@ -1,4 +1,5 @@
 open! Core
+open! Unboxed
 open! Import
 
 type t =
@@ -8,32 +9,37 @@ type t =
   | Literal of global_ Slice.Search_pattern.t
 [@@deriving sexp_of]
 
-let matches t ~input ~offset : I64.Option.t =
+let matches (t @ local) ~input ~offset : I64.Option.t =
   match t with
   | Class character_class ->
     (match Slice.get input offset with
-     | None -> None
-     | Some c -> if Character_class.matches character_class c then Some #1L else None)
+     | None -> I64.Option.none ()
+     | Some c ->
+       if Character_class.matches character_class c
+       then I64.Option.some #1L
+       else I64.Option.none ())
   | One_of chars ->
     (match Slice.get input offset with
-     | None -> None
+     | None -> I64.Option.none ()
      | Some c ->
-       if Iarray.exists_local chars ~f:(fun c' -> Char.equal c c') then Some #1L else None)
+       if Iarray.Local.exists chars ~f:(fun c' -> Char.equal c c')
+       then I64.Option.some #1L
+       else I64.Option.none ())
   | Not_one_of chars ->
     (match Slice.get input offset with
-     | None -> None
+     | None -> I64.Option.none ()
      | Some c ->
-       if not (Iarray.exists_local chars ~f:(fun c' -> Char.equal c c'))
-       then Some #1L
-       else None)
+       if not (Iarray.Local.exists chars ~f:(fun c' -> Char.equal c c'))
+       then I64.Option.some #1L
+       else I64.Option.none ())
   | Literal l ->
     let substring = Slice.Search_pattern.pattern l in
     (match Slice.slice input ~pos:offset ~len:(Slice.length substring) with
-     | None -> None
+     | None -> I64.Option.none ()
      | Some input_substring ->
        if Slice.memcmp substring input_substring
        then (
          let length = Slice.length substring in
-         exclave_ Some length)
-       else None)
+         I64.Option.some length)
+       else I64.Option.none ())
 ;;

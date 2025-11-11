@@ -1,4 +1,5 @@
 open! Core
+open! Unboxed
 open! Import
 
 module State : sig
@@ -23,12 +24,12 @@ end
 
 module Builder = struct
   type t =
-    { global_ states : Node.t Dynarray.t
+    { global_ states : Node.t Vec.t
     ; mutable next_state : State.t
     }
   [@@deriving sexp_of]
 
-  let create () = { states = Stdlib.Dynarray.create (); next_state = State.zero }
+  let create () = { states = Vec.create (); next_state = State.zero }
 
   let fresh_state t =
     let state = t.next_state in
@@ -37,14 +38,14 @@ module Builder = struct
   ;;
 
   let add_edge t ~from_state ~to_state rule =
-    Dynarray.resize t.states (State.to_int from_state + 1) ~default:(Fn.const Node.empty);
-    let node = Dynarray.get t.states (State.to_int from_state) in
+    Vec.grow_to_include' t.states (State.to_int from_state) ~default:(Fn.const Node.empty);
+    let node = Vec.get t.states (State.to_int from_state) in
     let node =
       match rule with
       | None -> Node.set_epsilon_exn node to_state
       | Some rule -> Node.set_rule node (rule, to_state)
     in
-    Dynarray.set t.states (State.to_int from_state) node
+    Vec.set t.states (State.to_int from_state) node
   ;;
 end
 
@@ -61,7 +62,7 @@ let build ~flags (f : Builder.t @ local -> State.t) =
   let builder = Builder.create () in
   let accepting_state = f builder in
   let%tydi { states; _ } = builder in
-  let states = Dynarray.to_iarray states in
+  let states = Vec.to_iarray states in
   { nodes = states; accepting_state; flags }
 ;;
 
@@ -123,7 +124,8 @@ let compile (re : Regex0.t) =
       accepting_state
     | Seq res ->
       List.fold res ~init:current_state ~f:(fun current_state re ->
-        to_nfa_inner builder re ~current_state) [@nontail]
+        to_nfa_inner builder re ~current_state)
+      [@nontail]
   in
   build ~flags:re.flags (fun builder ->
     to_nfa_inner builder re.re ~current_state:(Builder.fresh_state builder) [@nontail])

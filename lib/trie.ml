@@ -84,26 +84,23 @@ let of_stringy
   let builder = Builder.create () in
   List.iter_local_input strings ~f:(Builder.add_stringy (module Stringy) builder);
   let num_states = Hashtbl.length builder.states in
-  let array =
-    Array.init num_states ~f:(fun state_idx ->
-      let state_id = Id.of_int_exn state_idx in
-      let state_transitions = Builder.state builder state_id in
-      Iarray.construct ~len:(accepting_state_idx + 1) ~default:(-1) ~f:(fun array ->
-        for i = 0 to 255 do
-          (* SAFETY: i >= 0, i <= 255 *)
-          let c = Char.unsafe_of_int i in
-          let next_state =
-            match Map.find state_transitions c with
-            | None -> root_state
-            | Some next_state -> next_state
-          in
-          Array.unsafe_set array i (Id.to_int_exn next_state)
-        done;
-        if Hash_set.mem builder.accepting_states state_id
-        then array.(accepting_state_idx) <- 1
-        else array.(accepting_state_idx) <- 0))
-  in
-  Iarray.unsafe_of_array array
+  Iarray.init num_states ~f:(fun state_idx ->
+    let state_id = Id.of_int_exn state_idx in
+    let state_transitions = Builder.state builder state_id in
+    Iarray.create ~len:(accepting_state_idx + 1) (-1) ~mutate:(fun array ->
+      for i = 0 to 255 do
+        (* SAFETY: i >= 0, i <= 255 *)
+        let c = Char.unsafe_of_int i in
+        let next_state =
+          match Map.find state_transitions c with
+          | None -> root_state
+          | Some next_state -> next_state
+        in
+        Array.unsafe_set array i (Id.to_int_exn next_state)
+      done;
+      if Hash_set.mem builder.accepting_states state_id
+      then array.(accepting_state_idx) <- 1
+      else array.(accepting_state_idx) <- 0))
 ;;
 
 let of_strings =

@@ -2,7 +2,7 @@
  (name og_utils)
  (inline_tests)
  (preprocess
-  (pps ppx_jane ppx_template ppx_og -mode -- %{profile}))
+  (pps ppx_for_loop ppx_jane ppx_template ppx_og -mode -- %{profile}))
  (libraries
   core
   core_unix
@@ -10,5 +10,6 @@
   expect_test_helpers_core
   stdlib_stable
   stdlib_upstream_compatible
+  unboxed
   ;;
   ))

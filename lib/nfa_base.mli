@@ -1,4 +1,5 @@
 open! Core
+open! Unboxed
 open! Import
 
 module State : sig
@@ -13,8 +14,8 @@ module Builder : sig
   (** Returns a new state id. Unique to this particular NFA. Not globally unique. *)
   val fresh_state : t @ local -> State.t
 
-  (** [add_edge t ~from_state ~to_state rule] adds the specified rule to the NFA.
-      If [rule] is [None], this will be an epsilon transition. *)
+  (** [add_edge t ~from_state ~to_state rule] adds the specified rule to the NFA. If
+      [rule] is [None], this will be an epsilon transition. *)
   val add_edge
     :  t @ local
     -> from_state:State.t

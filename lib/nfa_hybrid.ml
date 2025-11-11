@@ -1,4 +1,5 @@
 open! Core
+open! Unboxed
 open! Import
 
 module State : sig
@@ -25,12 +26,12 @@ end
 
 module Builder = struct
   type t =
-    { global_ states : Node.t option Dynarray.t
+    { global_ states : Node.t option Vec.t
     ; mutable next_state : State.t
     }
   [@@deriving sexp_of]
 
-  let create () = { states = Dynarray.create (); next_state = State.zero }
+  let create () = { states = Vec.create (); next_state = State.zero }
 
   let fresh_state t =
     let state = t.next_state in
@@ -39,8 +40,8 @@ module Builder = struct
   ;;
 
   let set_state t state node =
-    Dynarray.resize t.states (State.to_int state + 1) ~default:(Fn.const None);
-    Dynarray.set t.states (State.to_int state) (Some node)
+    Vec.grow_to_include' t.states (State.to_int state) ~default:(Fn.const None);
+    Vec.set t.states (State.to_int state) (Some node)
   ;;
 end
 
@@ -83,7 +84,7 @@ let build ~flags ~look_for_constant (local_ (f : Builder.t @ local -> State.t)) 
   Builder.set_state builder accepting_state Accept;
   let%tydi { states; _ } = builder in
   let states =
-    Dynarray.to_list states
+    Vec.to_list states
     |> List.map ~f:(fun node ->
       Option.value_exn ~message:"BUG: a node was not initialized" node)
     |> Iarray.of_list
@@ -106,7 +107,8 @@ let compile (re : Regex0.t) =
           builder
           initial_state
           (Match (Charset.of_list [ c ], next_state));
-        next_state) [@nontail]
+        next_state)
+      [@nontail]
     | Opt re ->
       let taken_state = Builder.fresh_state builder in
       let accepting_state = aux builder re ~initial_state:taken_state in
@@ -133,7 +135,8 @@ let compile (re : Regex0.t) =
       accepting_state
     | Seq res ->
       List.fold res ~init:initial_state ~f:(fun initial_state re ->
-        aux builder re ~initial_state) [@nontail]
+        aux builder re ~initial_state)
+      [@nontail]
     | Class c ->
       let next_state = Builder.fresh_state builder in
       Builder.set_state
@@ -245,9 +248,10 @@ let eval t input =
   then eval_inner t input ~offset:#0L ~dstate ~generation ~state_generations [@nontail]
   else
     With_return.with_return (fun { return } ->
-      for%i64 offset = #0L to Slice.length input - #1L do
+      for%loop offset = #0L to I64.O.(Slice.length input - #1L) do
         if eval_inner t input ~offset ~dstate ~generation ~state_generations
         then return true
       done;
-      false) [@nontail]
+      false)
+    [@nontail]
 ;;

@@ -1,4 +1,5 @@
 open! Base
+open! Unboxed
 open! Import
 
 type t =
@@ -8,6 +9,6 @@ type t =
   | Literal of global_ Slice.Search_pattern.t
 [@@deriving sexp_of]
 
-(** [matches t ~input ~offset] returns the number of characters matched, if
-    applicable, and returns [None] otherwise. *)
+(** [matches t ~input ~offset] returns the number of characters matched, if applicable,
+    and returns [None] otherwise. *)
 val matches : t @ local -> input:Slice.t @ local -> offset:int64# -> I64.Option.t @ local
