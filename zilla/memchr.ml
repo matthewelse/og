@@ -23,7 +23,7 @@ module%template
          val unsafe_get_vec : t -> Vec.t
          val unsafe_get_char : t -> char
          val advance : t -> i64 -> t
-         val in_range : t -> bool
+         val not_past_end : t -> bool
          val finalize : t -> str -> I64.Option.t
        end
 
@@ -96,14 +96,15 @@ struct
   let memchr s ~pos ~len c =
     let open I64.O in
     let[@inline always] rec aux_serial s c =
-      if String.Ptr.in_range s
+      if String.Ptr.not_past_end s
       then (
         let chunk = String.Ptr.unsafe_get_char s |> Char.to_int |> I64.of_int in
         if not (I64.equal chunk c) then aux_serial (String.Ptr.advance s #1L) c else s)
       else s
     in
     let rec aux_simd s c_mask c =
-      if String.Ptr.in_range (String.Ptr.advance s (Unrolled_vec.vector_size () - #1L))
+      if String.Ptr.not_past_end
+           (String.Ptr.advance s (Unrolled_vec.vector_size () - #1L))
       then (
         let chunk = Unrolled_vec.load s in
         let mask = Unrolled_vec.compare chunk c_mask in
@@ -125,7 +126,7 @@ struct
   let memchr2 s ~pos ~len c0 c1 =
     let open I64.O in
     let[@inline always] rec aux_serial s c0 c1 =
-      if String.Ptr.in_range s
+      if String.Ptr.not_past_end s
       then (
         let chunk = String.Ptr.unsafe_get_char s |> Char.to_int |> I64.of_int in
         if (not (I64.equal chunk c0)) && not (I64.equal chunk c1)
@@ -134,7 +135,8 @@ struct
       else s
     in
     let rec aux_simd s c0_mask c1_mask c0 c1 =
-      if String.Ptr.in_range (String.Ptr.advance s (Unrolled_vec.vector_size () - #1L))
+      if String.Ptr.not_past_end
+           (String.Ptr.advance s (Unrolled_vec.vector_size () - #1L))
       then (
         let chunk = Unrolled_vec.load s in
         let mask = Unrolled_vec.(compare chunk c0_mask lor compare chunk c1_mask) in
@@ -164,7 +166,7 @@ struct
   let memchr3 s ~pos ~len c0 c1 c2 =
     let open I64.O in
     let[@inline always] rec aux_serial s c0 c1 c2 =
-      if String.Ptr.in_range s
+      if String.Ptr.not_past_end s
       then (
         let chunk = String.Ptr.unsafe_get_char s |> Char.to_int |> I64.of_int in
         if (not (I64.equal chunk c0))
@@ -175,7 +177,8 @@ struct
       else s
     in
     let rec aux_simd s c0_mask c1_mask c2_mask c0 c1 c2 =
-      if String.Ptr.in_range (String.Ptr.advance s (Unrolled_vec.vector_size () - #1L))
+      if String.Ptr.not_past_end
+           (String.Ptr.advance s (Unrolled_vec.vector_size () - #1L))
       then (
         let chunk = Unrolled_vec.load s in
         let mask =
@@ -238,18 +241,19 @@ module String =
       module Ptr = struct
         type t = #(string * pos:i64 * len:i64)
 
-        let in_range #(_, ~pos, ~len) =
+        let not_past_end #(_, ~pos, ~len) =
           let open I64.O in
+          [%debug_assert pos >= #0L];
           pos < len
         ;;
 
         let unsafe_get_vec (#(str, ~pos:byte, ~len:_) as t) =
-          [%debug_assert in_range t];
+          [%debug_assert not_past_end t];
           Int8x16.String.Int64_u.unsafe_get str ~byte
         ;;
 
         let unsafe_get_char (#(str, ~pos:byte, ~len:_) as t) =
-          [%debug_assert in_range t];
+          [%debug_assert not_past_end t];
           String.unsafe_get str (I64.to_int_trunc byte)
         ;;
 
@@ -289,8 +293,9 @@ module Bytes =
           Bytes.unsafe_get t (I64.to_int_trunc byte)
         ;;
 
-        let in_range #(_, ~pos, ~len) =
+        let not_past_end #(_, ~pos, ~len) =
           let open I64.O in
+          [%debug_assert pos >= #0L];
           pos < len
         ;;
 
@@ -340,15 +345,18 @@ module Bigstring =
            * start:Iptr.Hex_unsigned.t
            * end_:Iptr.Hex_unsigned.t)
 
-        let in_range #(~pos, ~start, ~end_) = Iptr.O.(pos >= start && pos < end_)
+        let not_past_end #(~pos, ~start, ~end_) =
+          [%debug_assert Iptr.O.(pos >= start)];
+          Iptr.O.(pos < end_)
+        ;;
 
         let unsafe_get_vec (#(~pos, ~start:_, ~end_:_) as t) =
-          [%debug_assert in_range t];
+          [%debug_assert not_past_end t];
           Int8x16.Raw.unaligned_load pos
         ;;
 
         let unsafe_get_char ((#(~pos, ..) : t) as t) =
-          [%debug_assert in_range t];
+          [%debug_assert not_past_end t];
           iptr_load_untagged_char pos
         ;;
 
@@ -359,7 +367,7 @@ module Bigstring =
 
         let finalize (#(~pos, ~start, ~end_:_) as t) buf =
           let offset =
-            if in_range t
+            if not_past_end t
             then I64.Option.unchecked_some Iptr.O.(pos - start |> Iptr.to_i64)
             else I64.Option.none ()
           in
