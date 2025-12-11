@@ -4,6 +4,7 @@
  (preprocess
   (pps ppx_for_loop ppx_jane ppx_template ppx_og -mode -- %{profile}))
  (libraries
+  camlzilla_kernel
   core
   core_unix
   core_unix.bigstring_unix

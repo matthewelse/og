@@ -172,43 +172,6 @@ let slice_from t ~pos =
   else exclave_ Some (unsafe_slice t ~pos ~len:(t.len - pos))
 ;;
 
-let rec memchr_slow_path t c ~offset : I64.Option.t =
-  let open I64.O in
-  if offset < t.len
-  then
-    if Char.equal (unsafe_get t offset) c
-    then I64.Option.some offset
-    else memchr_slow_path t c ~offset:(offset + #1L)
-  else I64.Option.none ()
-;;
-
-let rec memchr_fast_path' t c mask_c ~offset : I64.Option.t = exclave_
-  (* Adapted from https://bits.stephan-brumme.com/null.html. Manually unrolled once.
-     Unrolling more than once doesn't seem not to make much of a difference, nor does
-     using `[@unroll 2]`. *)
-  let open I64.O in
-  let mask_lo = #0x0101010101010101L in
-  let mask_hi = #0x8080808080808080L in
-  if offset + #16L <= t.len
-  then (
-    let bytes = Data.unsafe_get_i64 t.bytes (t.pos + offset) in
-    let bytes' = Data.unsafe_get_i64 t.bytes (t.pos + offset + #8L) in
-    let with_c_zeros = I64.O.(bytes lxor mask_c) in
-    let with_c_zeros' = I64.O.(bytes' lxor mask_c) in
-    let res = I64.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi) in
-    let res' = I64.O.((with_c_zeros' - mask_lo) land lnot with_c_zeros' land mask_hi) in
-    if I64.O.(res <> #0L)
-    then (
-      let byte_offset = I64.ctz res lsr 3 in
-      I64.Option.some (offset + byte_offset))
-    else if I64.O.(res' <> #0L)
-    then (
-      let byte_offset = I64.ctz res' lsr 3 in
-      I64.Option.some (offset + #8L + byte_offset))
-    else memchr_fast_path' t c mask_c ~offset:(offset + #16L))
-  else memchr_slow_path t c ~offset
-;;
-
 let splat c =
   let open I64.O in
   let c = Char.to_int c |> I64.of_int in
@@ -222,7 +185,9 @@ let splat c =
   lor (c lsl 56)
 ;;
 
-let memchr t c : I64.Option.t = exclave_ memchr_fast_path' t c (splat c) ~offset:#0L
+let memchr t c : I64.Option.t =
+  Camlzilla_kernel.Memchr.Bigstring.memchr t.bytes c ~pos:t.pos ~len:t.len
+;;
 
 let rec rmemchr_slow_path t c ~offset : I64.Option.t =
   let open I64.O in

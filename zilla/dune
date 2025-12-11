@@ -1,0 +1,15 @@
+(library
+ (name camlzilla_kernel)
+ (libraries base base_bigstring unboxed ocaml_simd_neon)
+ ;; This library contains the most highly-optimised primitives, so disable poll insertion.
+ ;;
+ ;; I think this makes sense, since the alternative would be to write these functinos
+ ;; in C, which also wouldn't have any safe points.
+ (ocamlopt_flags :standard -O3 -disable-poll-insertion -flambda2-reaper)
+ (foreign_stubs
+  (language c)
+  (names camlzilla_stubs))
+ (preprocess
+  (pps ppx_optional ppx_og ppx_template -mode -- %{profile}))
+ ;;
+ )
