@@ -257,5 +257,24 @@ let%expect_test "test conversion to nfa" =
          (Match (e) 16) Accept))
        (cache ()) (accepting_state 16) (flags (Require_sol))
        (look_for_constant ()))))
+    |}];
+  (* FIXME: Nfa_backtrack is broken here. *)
+  test "a*";
+  [%expect
+    {|
+    ((impl Nfa_backtrack)
+     (nfa
+      ((nodes
+        (((((Literal
+             ((bad_character <opaque>) (bad_suffix <opaque>)
+              (pattern ((bytes a) (pos 0) (len 1))))))
+           1)
+          (() 1))
+         ((() 0))))
+       (accepting_state 1) (flags ()))))
+    ((impl Nfa_hybrid)
+     (nfa
+      ((nfa ((Split 1 3) (Match (a) 2) (Split 3 1) Accept)) (cache ())
+       (accepting_state 3) (flags ()) (look_for_constant ()))))
     |}]
 ;;

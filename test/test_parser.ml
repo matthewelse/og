@@ -25,5 +25,7 @@ let%expect_test "regular expression parsing" =
   test "(abc)+";
   [%expect {| ((re (Rep1 (String abc))) (flags ())) |}];
   test "^abc$";
-  [%expect {| ((re (String abc)) (flags (Require_sol Require_eol))) |}]
+  [%expect {| ((re (String abc)) (flags (Require_sol Require_eol))) |}];
+  test "a*";
+  [%expect {| ((re (Opt (Rep1 (String a)))) (flags ())) |}]
 ;;

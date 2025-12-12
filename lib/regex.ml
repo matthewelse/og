@@ -94,6 +94,10 @@ and parse_sequence parser acc =
     let left = Seq acc in
     let%bind right = parse_sequence parser [] in
     parse_sequence parser [ Or (left, Seq right) ]
+  | Some '*' ->
+    (match acc with
+     | prev :: acc -> parse_sequence parser (Opt (Rep1 prev) :: acc)
+     | [] -> Or_error.error_string "Saw + operator, but there was nothing before that.")
   | Some '+' ->
     (match acc with
      | prev :: acc -> parse_sequence parser (Rep1 prev :: acc)
@@ -102,7 +106,7 @@ and parse_sequence parser acc =
     (match acc with
      | prev :: acc -> parse_sequence parser (Opt prev :: acc)
      | [] -> Or_error.error_string "Saw + operator, but there was nothing before that.")
-  | Some '.' -> parse_sequence parser (Neg_group [] :: acc)
+  | Some '.' -> parse_sequence parser (Neg_group [ '\n' ] :: acc)
   | Some c -> parse_sequence parser (String (Char.to_string c) :: acc)
 ;;
 
