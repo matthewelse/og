@@ -1,4 +1,4 @@
 (executable
  (public_name og)
  (name main)
- (libraries core_unix.command_unix og))
+ (libraries core_unix.command_unix og_driver))

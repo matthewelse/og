@@ -10,5 +10,5 @@ val iter
   :  t
   -> buffer_size:int
   -> max_buffer_size:int
-  -> f:(string -> Import.Buffered_reader.t -> unit)
+  -> f:(string -> Buffered_reader.t -> unit)
   -> unit
