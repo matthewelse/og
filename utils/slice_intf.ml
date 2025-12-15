@@ -42,7 +42,7 @@ module type S = sig
   val get_exn : t @ local -> int64# -> char
 
   (** [get t pos] returns [None] if [pos < 0 || pos >= length t]. *)
-  val get : t @ local -> int64# -> local_ char option
+  val get : t @ local -> int64# -> char or_null
 
   val unsafe_get : t @ local -> int64# -> char
 

@@ -119,9 +119,7 @@ let get_exn (local_ t) ix =
 
 let get (local_ t) ix =
   let open I64.O in
-  if ix >= t.len || ix < #0L
-  then None
-  else exclave_ Some (Data.unsafe_get t.bytes (t.pos + ix))
+  if ix >= t.len || ix < #0L then Null else This (Data.unsafe_get t.bytes (t.pos + ix))
 ;;
 
 let unsafe_get (local_ t) ix =

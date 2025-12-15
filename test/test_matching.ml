@@ -18,42 +18,47 @@ let%expect_test "regular expression matching" =
       "abc"
       ~ok_inputs:[ "abc"; "   abc"; "abcabc" ]
       ~error_inputs:[ "a"; "ab"; "abd"; "ab c"; "" ];
-    ([%expect {| |}];
-     test "a|bc" ~ok_inputs:[ "a"; "bc"; "abc"; "ab" ] ~error_inputs:[ "b"; "c"; "" ];
-     [%expect {| |}];
-     test
-       "[abc]"
-       ~ok_inputs:[ "a"; "b"; "c"; "aaabbbccc"; "abc" ]
-       ~error_inputs:[ ""; "d" ];
-     [%expect {| |}];
-     test "[^abc]" ~ok_inputs:[ "d"; "da" ] ~error_inputs:[ "a"; "b"; "c"; "abc" ];
-     [%expect {| |}];
-     test "\\d" ~ok_inputs:[ "012345678"; "1"; "9"; "a9" ] ~error_inputs:[ "a" ];
-     [%expect {| |}];
-     test "\\w" ~ok_inputs:[ "a"; "0"; "a." ] ~error_inputs:[ "."; "\\" ];
-     [%expect {| |}];
-     test "a?bc" ~ok_inputs:[ "abc"; "bc"; "aabc" ] ~error_inputs:[ "a"; "b"; "c" ];
-     [%expect {| |}];
-     test "a+bc" ~ok_inputs:[ "aabc" ] ~error_inputs:[ "bc" ];
-     [%expect {| |}];
-     test "(abc)+" ~ok_inputs:[ "abc"; "abcabc" ] ~error_inputs:[ ""; "a"; "ab" ];
-     [%expect {| |}];
-     test "^abc$" ~ok_inputs:[ "abc" ] ~error_inputs:[ ""; " abc"; "abc "; " abc " ];
-     [%expect {| |}];
-     test
-       "nananax?x"
-       ~ok_inputs:[ "nananax"; "nananaxx"; "nanananaxx" ]
-       ~error_inputs:[ "nanana" ];
-     [%expect {| |}];
-     test
-       "^#?i?n?c?l?u?d?e?"
-       ~ok_inputs:
-         [ ""; "include"; "#include"; "i"; "n"; "c"; "l"; "u"; "d"; "e"; "  #include" ]
-       ~error_inputs:[];
-     [%expect {| |}];
-     test "^[]$" ~ok_inputs:[] ~error_inputs:[ ""; "[]"; "[] "; " []"; "a"; "][" ];
-     [%expect {| |}]
-     : unit))
+    [%expect
+      {| |}];
+    test "a|bc" ~ok_inputs:[ "a"; "bc"; "abc"; "ab" ] ~error_inputs:[ "b"; "c"; "" ];
+    [%expect {| |}];
+    test
+      "[abc]"
+      ~ok_inputs:[ "a"; "b"; "c"; "aaabbbccc"; "abc" ]
+      ~error_inputs:[ ""; "d" ];
+    [%expect {| |}];
+    test "[^abc]" ~ok_inputs:[ "d"; "da" ] ~error_inputs:[ "a"; "b"; "c"; "abc" ];
+    [%expect {| |}];
+    test "\\d" ~ok_inputs:[ "012345678"; "1"; "9"; "a9" ] ~error_inputs:[ "a" ];
+    [%expect
+      {| |}];
+    test "\\w" ~ok_inputs:[ "a"; "0"; "a." ] ~error_inputs:[ "."; "\\" ];
+    [%expect {| |}];
+    test "a?bc" ~ok_inputs:[ "abc"; "bc"; "aabc" ] ~error_inputs:[ "a"; "b"; "c" ];
+    [%expect
+      {| |}];
+    test "a+bc" ~ok_inputs:[ "aabc" ] ~error_inputs:[ "bc" ];
+    [%expect {| |}];
+    test "(abc)+" ~ok_inputs:[ "abc"; "abcabc" ] ~error_inputs:[ ""; "a"; "ab" ];
+    [%expect {| |}];
+    test "^abc$" ~ok_inputs:[ "abc" ] ~error_inputs:[ ""; " abc"; "abc "; " abc " ];
+    [%expect
+      {| |}];
+    test
+      "nananax?x"
+      ~ok_inputs:[ "nananax"; "nananaxx"; "nanananaxx" ]
+      ~error_inputs:[ "nanana" ];
+    [%expect
+      {| |}];
+    test
+      "^#?i?n?c?l?u?d?e?"
+      ~ok_inputs:
+        [ ""; "include"; "#include"; "i"; "n"; "c"; "l"; "u"; "d"; "e"; "  #include" ]
+      ~error_inputs:[];
+    [%expect {| |}];
+    test "^[]$" ~ok_inputs:[] ~error_inputs:[ ""; "[]"; "[] "; " []"; "a"; "][" ];
+    [%expect
+      {| |}])
 ;;
 
 let%expect_test "regression test: `nfa_hybrid` bug" =

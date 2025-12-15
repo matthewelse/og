@@ -7,4 +7,5 @@ module Backends = struct
   module Nfa = Nfa
   module Nfa_base = Nfa_base
   module Nfa_hybrid = Nfa_hybrid
+  module Nfa_vm = Nfa_vm
 end

@@ -9,6 +9,6 @@ module type S = sig
 end
 
 type t =
-  | Nfa_backtrack
+  | Nfa_vm
   | Nfa_hybrid
 [@@deriving enumerate, sexp_of]

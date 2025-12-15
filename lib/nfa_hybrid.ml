@@ -208,8 +208,8 @@ let rec eval_inner t (local_ input) ~offset ~dstate ~generation ~state_generatio
    && ((not (Flags.mem t.flags Require_eol)) || offset = Slice.length input))
   ||
   match Slice.get input offset with
-  | None -> false
-  | Some c ->
+  | Null -> false
+  | This c ->
     let dstate =
       match dnode.:(c) with
       | Some dstate -> dstate

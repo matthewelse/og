@@ -13,22 +13,22 @@ let matches (t @ local) ~input ~offset : I64.Option.t =
   match t with
   | Class character_class ->
     (match Slice.get input offset with
-     | None -> I64.Option.none ()
-     | Some c ->
+     | Null -> I64.Option.none ()
+     | This c ->
        if Character_class.matches character_class c
        then I64.Option.some #1L
        else I64.Option.none ())
   | One_of chars ->
     (match Slice.get input offset with
-     | None -> I64.Option.none ()
-     | Some c ->
+     | Null -> I64.Option.none ()
+     | This c ->
        if Iarray.Local.exists chars ~f:(fun c' -> Char.equal c c')
        then I64.Option.some #1L
        else I64.Option.none ())
   | Not_one_of chars ->
     (match Slice.get input offset with
-     | None -> I64.Option.none ()
-     | Some c ->
+     | Null -> I64.Option.none ()
+     | This c ->
        if not (Iarray.Local.exists chars ~f:(fun c' -> Char.equal c c'))
        then I64.Option.some #1L
        else I64.Option.none ())

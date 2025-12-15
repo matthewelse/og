@@ -153,7 +153,7 @@ let compile ?(impl : Implementation.t option) t : Compiled.t =
       (match t.re with
        | String _ -> (module Literal)
        | _ -> (module Nfa_hybrid))
-    | Some Nfa_backtrack -> (module Nfa)
+    | Some Nfa_vm -> (module Nfa_vm)
     | Some Nfa_hybrid -> (module Nfa_hybrid)
   in
   let compiled = Impl.compile t in
