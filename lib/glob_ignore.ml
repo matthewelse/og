@@ -1,17 +1,15 @@
 open! Core
 open! Import
 
-type t = (string * Regex.Compiled.t) Dynarray.t
+type t = (#(string * Regex.Compiled.t) Vec.t[@kind value & value])
 
-let create () = Dynarray.create ()
+let create () = (Vec.create [@kind value & value]) ()
 
 let should_ignore t path =
-  Dynarray.exists
-    (fun (dir, regex) ->
-      match String.chop_prefix path ~prefix:dir with
-      | None -> false
-      | Some path -> Regex.Compiled.matches regex (Slice.of_string path))
-    t
+  (Vec.exists [@kind value & value]) t ~f:(fun #(dir, regex) ->
+    match String.chop_prefix path ~prefix:dir with
+    | None -> false
+    | Some path -> Regex.Compiled.matches regex (Slice.of_string path))
 ;;
 
 let parse_gitignore (t : t) ~dir ~gitignore_path =
@@ -31,5 +29,5 @@ let parse_gitignore (t : t) ~dir ~gitignore_path =
       ; flags = Flags.of_list [ Require_eol; Require_sol ]
       }
   in
-  Dynarray.add_last t (dir, regex)
+  (Vec.push_back [@kind value & value]) t #(dir, regex)
 ;;

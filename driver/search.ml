@@ -36,7 +36,7 @@ end
 let main
   ~pattern
   ~count:_
-  ~impl:_
+  ~impl
   ~buffer_size
   ~max_buffer_size
   ~input_source
@@ -48,33 +48,29 @@ let main
     | "-" -> Stdin
     | input_source -> Files_recursively_under input_source
   in
-  let search_pattern = Slice.Search_pattern.create (Slice.of_string pattern) in
   let stats = Stats.zero () in
+  let%bind.Or_error re = Og.Regex.of_string pattern in
+  let regex = Og.Regex.compile ?impl re in
   Source.iter source ~buffer_size ~max_buffer_size ~f:(fun _path reader ->
-    Stats.on_file_searched stats;
-    while
-      try
-        Buffered_reader.chunk reader ~f:(fun [@inline always] chunk ->
-          Stats.add_bytes_searched stats (Slice.length chunk);
-          Slice.Search_pattern.indexes
-            search_pattern
-            chunk
-            ~f:(fun [@inline always] _match_offset_within_slice ->
-              Stats.on_match stats;
-              (* TODO: If [match_offset_within_file > last_newline_offset], we're on a
-                 new line, so increase the number of matched lines.
-
-                 Then, [memchr] until we find the next newline (or the end of
-                 the buffer, which is implicitly a newline, and update that.) *)
-              ()));
-        true
-      with
-      | End_of_file -> false
-    do
-      ()
-    done);
+    if Buffered_reader.is_probably_binary reader
+    then ()
+    else (
+      Stats.on_file_searched stats;
+      while
+        try
+          Buffered_reader.line reader ~f:(fun [@inline always] line ->
+            Stats.add_bytes_searched stats (Slice.length line);
+            let does_match = Og.Regex.Compiled.matches regex line in
+            if does_match then Stats.on_match stats;
+            ());
+          true
+        with
+        | End_of_file -> false
+      do
+        ()
+      done));
   Stats.dump stats;
-  0
+  Ok ()
 ;;
 
 let command =
@@ -96,25 +92,24 @@ let command =
       and buffer_size =
         flag
           "buffer-size"
-          (optional_with_default 4096 int)
+          (optional_with_default 65536 int)
           ~doc:"BYTES number of bytes to pre-allocate into a buffer."
       and max_buffer_size =
         flag
           "max-buffer-size"
-          (optional_with_default 65536 int)
+          (optional_with_default (1024 * 1024 * 1024) int)
           ~doc:"BYTES maximum number of bytes to pre-allocate into the read buffer."
       and input_source = anon (maybe_with_default "." ("INPUT" %: string))
       and show_stats = flag "show-stats" no_arg ~doc:" show stats"
       and quiet = flag "quiet" no_arg ~doc:" don't write anything to stdout" in
       fun () ->
-        Stdlib.exit
-        @@ main
-             ~pattern
-             ~count
-             ~impl
-             ~buffer_size
-             ~max_buffer_size
-             ~input_source
-             ~show_stats
-             ~quiet]
+        main
+          ~pattern
+          ~count
+          ~impl
+          ~buffer_size
+          ~max_buffer_size
+          ~input_source
+          ~show_stats
+          ~quiet]
 ;;

@@ -3,6 +3,9 @@
  (inline_tests)
  (preprocess
   (pps ppx_for_loop ppx_jane ppx_template ppx_og -mode -- %{profile}))
+ (foreign_stubs
+  (language c)
+  (names og_utils_stubs))
  (libraries
   camlzilla_kernel
   core

@@ -7,7 +7,7 @@ exception Buffer_limit_exceeded
 
 type t =
   { mutable buf : Bigstring.t
-  ; mutable fd : Core_unix.File_descr.t option (* None if we've seen eof *)
+  ; mutable fd : I64.Option.t (* None if we've seen eof *)
   ; mutable pos : int64#
   ; mutable len : int64#
   ; mutable consumed : int64# (* Total bytes consumed so far *)
@@ -22,10 +22,11 @@ let of_fd ?initial_size ~max_size fd =
     Option.value initial_size ~default:(Int.min 4096 max_size) |> I64.of_int
   in
   let buf = Bigstring.create (I64.to_int_exn initial_size) in
+  let fd = Core_unix.File_descr.to_i32 fd |> I64.of_i32 in
   { buf
   ; pos = #0L
   ; len = #0L
-  ; fd = Some fd
+  ; fd = I64.Option.some fd
   ; max_size = I64.of_int max_size
   ; consumed = #0L
   }
@@ -51,12 +52,33 @@ let[@inline] consume t n =
 
 let buffered_bytes t = t.len
 
+external unsafe_read_assume_fd_is_nonblocking
+  :  fd:i64
+  -> iptr
+  -> len:i64
+  -> i64
+  = "read" "read"
+[@@noalloc]
+
+external og_utils_explain_error
+  :  unit
+  -> unit
+  = "og_utils_explain_error" "og_utils_explain_error"
+[@@noalloc]
+
+external unsafe_iptr_of_bigstring
+  :  Base_bigstring.t
+  -> pos:i64
+  -> (nativeint#[@unboxed])
+  = "caml_native_pointer_of_bigstring_bytecode" "caml_native_pointer_of_bigstring"
+[@@noalloc] [@@no_effects] [@@no_coeffects]
+
 let ensure_slow_path t n =
   let open I64.O in
   assert (n >= #0L);
   if n > t.max_size then raise Buffer_limit_exceeded;
   (* We don't have enough data yet, so we'll need to do a read. *)
-  match t.fd with
+  match%optional_u.I64.Option t.fd with
   | None -> raise End_of_file
   | Some fd ->
     (* If the buffer is empty, we might as well use all of it: *)
@@ -78,7 +100,7 @@ let ensure_slow_path t n =
         t.buf <- new_buf)
       else if t.pos + n > cap
       then (
-        (* [n] bytes will fit in the existing buffer, but we need to compact it first. *)
+        (* [n] bytes will fit in the existing buffer, but we neefiled to compact it first. *)
         Slice.unsafe_blit
           ~src:(peek t)
           ~src_pos:0
@@ -97,21 +119,25 @@ let ensure_slow_path t n =
          in
          assert (t.len + Slice.length free_space >= n);
          let got =
-           Bigstring_unix.unsafe_read_assume_fd_is_nonblocking
-             fd
-             (Slice.Expert.bytes free_space)
-             ~pos:(Slice.Expert.pos free_space |> I64.to_int_trunc)
-             ~len:(Slice.Expert.len free_space |> I64.to_int_trunc)
-           |> Core_unix.Syscall_result.Int.ok_exn
-           |> I64.of_int
+           unsafe_read_assume_fd_is_nonblocking
+             ~fd
+             (unsafe_iptr_of_bigstring
+                (Slice.Expert.bytes free_space)
+                ~pos:(Slice.Expert.pos free_space))
+             ~len:(Slice.Expert.len free_space)
          in
-         if got = #0L then raise End_of_file;
+         if got = #0L
+         then raise End_of_file
+         else if got = -#1L
+         then (
+           og_utils_explain_error ();
+           failwith "todo error");
          t.len <- t.len + got
        done;
        assert (buffered_bytes t >= n)
      with
      | End_of_file ->
-       t.fd <- None;
+       t.fd <- I64.Option.none ();
        raise End_of_file)
 ;;
 
@@ -183,7 +209,7 @@ let chunk t ~f =
 
 let stdin ?initial_size ~max_size () = of_fd ?initial_size ~max_size Core_unix.stdin
 
-let is_probably_binary ?(num_bytes_to_read = 1024) t =
+let is_probably_binary ?(num_bytes_to_read = 3) t =
   (try ensure t (I64.of_int num_bytes_to_read) with
    | End_of_file -> ());
   let buf = peek t in

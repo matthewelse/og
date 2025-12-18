@@ -19,7 +19,7 @@
     - I'm not 100% sure why this is faster. Maybe because it reduces the amount
       of work the GC has to do?
     - Maybe there's something to do with alignment that helps here too.
-- [ ] Wider SIMD (use Neon/SSE/AVX) for memchr/memcmp
+- [x] Wider SIMD (use Neon/SSE/AVX) for memchr/memcmp
 - [ ] Aho-Corasick for multiple string matching
 - [ ] SIMD-accelerated string matching
   (https://github.com/BurntSushi/aho-corasick/blob/master/src/packed/teddy/README.md)
@@ -32,3 +32,8 @@
   `caml_apply`s in surprising places).
 - [x] Use tail-recursive functions, rather than loops (seems like the compiler
   is better at optimising these, and saves you from using `ref`s)
+
+- [x] Attempted to use open/read/write syscalls directly, rather than using the builtin stdlib.
+      I thought this would make a big difference, but turns out not to be a big deal -- seems like
+      string matching is the issue.
+
