@@ -36,7 +36,7 @@ end
 let main
   ~pattern
   ~count:_
-  ~impl
+  ~impl:_ (* FIXME: use impl *)
   ~buffer_size
   ~max_buffer_size
   ~input_source
@@ -50,7 +50,7 @@ let main
   in
   let stats = Stats.zero () in
   let%bind.Or_error re = Og.Regex.of_string pattern in
-  let regex = Og.Regex.compile ?impl re in
+  let regex = Og.Backends.Nfa_hybrid.compile re in
   Source.iter source ~buffer_size ~max_buffer_size ~f:(fun _path reader ->
     if Buffered_reader.is_probably_binary reader ~num_bytes_to_read:#3L
     then ()
@@ -58,9 +58,53 @@ let main
       Stats.on_file_searched stats;
       while
         try
+          (match Og.Backends.Nfa_hybrid.look_for_constant regex with
+           | None -> ()
+           | Some needle ->
+             let needle =
+               Slice.create_local
+                 needle
+                 ~pos:#0L
+                 ~len:(Bigstring.length needle |> I64.of_int)
+             in
+             while
+               let chunk = Buffered_reader.peek reader in
+               match%optional_u.I64.Option
+                 Camlzilla_kernel.Memmem.Bigstring.memmem
+                   ~needle:(Slice.Expert.bytes needle)
+                   ~needle_pos:#0L
+                   ~needle_len:(Slice.length needle)
+                   ~haystack:(Slice.Expert.bytes chunk)
+                   ~haystack_pos:(Slice.Expert.pos chunk)
+                   ~haystack_len:(Slice.Expert.len chunk)
+               with
+               | None ->
+                 (* If the string isn't found, then rewind to the end of the previous line, and
+                    search from there. *)
+                 (match%optional_u.I64.Option Slice.rmemchr chunk '\n' with
+                  | None ->
+                    (* The regex might extend over this line, so we have to assume taht there's a
+                       match on this line.. *)
+                    false
+                  | Some pos ->
+                    Buffered_reader.consume reader I64.O.(pos + #1L);
+                    true)
+               | Some pos ->
+                 (* If the string is found, rewind to the end of the previous line before the match,
+                     and search from there. *)
+                 (match%optional_u.I64.Option
+                    Slice.rmemchr (Slice.unsafe_slice chunk ~pos:#0L ~len:pos) '\n'
+                  with
+                  | None -> false
+                  | Some pos ->
+                    Buffered_reader.consume reader pos;
+                    false)
+             do
+               ()
+             done);
           Buffered_reader.line reader ~f:(fun [@inline always] line ->
             Stats.add_bytes_searched stats (Slice.length line);
-            let does_match = Og.Regex.Compiled.matches regex line in
+            let does_match = Og.Backends.Nfa_hybrid.eval regex line in
             if does_match then Stats.on_match stats;
             ());
           true

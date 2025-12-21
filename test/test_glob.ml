@@ -16,11 +16,6 @@ child/*.txt|} in
   print_s [%message (results : (Og.Regex.Rule.t, int * string) result list)];
   [%expect
     {|
-    ((String .) Star)
-    (Star (String .a))
-    ((String .clang-format))
-    ((String child_) Star (String /))
-    ((String child/) Star (String .txt))
     (results (
       (Ok (Seq ((String .) (Rep1 (Neg_group (/))))))
       (Ok (Seq ((Rep1 (Neg_group (/))) (String .a))))

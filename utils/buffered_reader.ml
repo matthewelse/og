@@ -5,9 +5,20 @@ open Unboxed
 
 exception Buffer_limit_exceeded
 
+module Source = struct
+  module Kind = struct
+    type ('a, 'b) t =
+      | File : (Core_unix.File_descr.t, unit) t
+      | String : (Bigstring.t, int) t
+      | Empty : (unit, unit) t
+  end
+
+  type t = T : #(('a, 'b) Kind.t * 'a * 'b) -> t [@@unboxed]
+end
+
 type t =
   { mutable buf : Bigstring.t
-  ; mutable fd : I64.Option.t (* None if we've seen eof *)
+  ; mutable fd : Source.t
   ; mutable pos : int64#
   ; mutable len : int64#
   ; mutable consumed : int64# (* Total bytes consumed so far *)
@@ -22,11 +33,25 @@ let of_fd ?initial_size ~max_size fd =
     Option.value initial_size ~default:(Int.min 4096 max_size) |> I64.of_int
   in
   let buf = Bigstring.create (I64.to_int_exn initial_size) in
-  let fd = Core_unix.File_descr.to_i32 fd |> I64.of_i32 in
   { buf
   ; pos = #0L
   ; len = #0L
-  ; fd = I64.Option.some fd
+  ; fd = T #(File, fd, ())
+  ; max_size = I64.of_int max_size
+  ; consumed = #0L
+  }
+;;
+
+let of_string ?initial_size ~max_size str =
+  if max_size <= 0 then failwithf "Max size %d should be positive!" max_size ();
+  let initial_size =
+    Option.value initial_size ~default:(Int.min 4096 max_size) |> I64.of_int
+  in
+  let buf = Bigstring.create (I64.to_int_exn initial_size) in
+  { buf
+  ; pos = #0L
+  ; len = #0L
+  ; fd = T #(String, Bigstring.of_string str, 0)
   ; max_size = I64.of_int max_size
   ; consumed = #0L
   }
@@ -78,9 +103,70 @@ let ensure_slow_path t n =
   assert (n >= #0L);
   if n > t.max_size then raise Buffer_limit_exceeded;
   (* We don't have enough data yet, so we'll need to do a read. *)
-  match%optional_u.I64.Option t.fd with
-  | None -> raise End_of_file
-  | Some fd ->
+  match t.fd with
+  | T #(Empty, (), ()) -> raise End_of_file
+  | T #(String, bs, offset) ->
+    (* If the buffer is empty, we might as well use all of it: *)
+    if t.len = #0L then t.pos <- #0L;
+    let () =
+      let cap = capacity t in
+      if n > cap
+      then (
+        (* [n] bytes won't fit. We need to resize the buffer. *)
+        let new_size = I64.max n (I64.min t.max_size (cap * #2L)) in
+        let new_buf = Bigstring.create (I64.to_int_trunc new_size) in
+        Slice.unsafe_blit
+          ~src:(peek t)
+          ~src_pos:0
+          ~dst:(Slice.create_local new_buf ~pos:#0L ~len:new_size)
+          ~dst_pos:0
+          ~len:(I64.to_int_trunc t.len);
+        t.pos <- #0L;
+        t.buf <- new_buf)
+      else if t.pos + n > cap
+      then (
+        (* [n] bytes will fit in the existing buffer, but we neefiled to compact it first. *)
+        Slice.unsafe_blit
+          ~src:(peek t)
+          ~src_pos:0
+          ~dst:(Slice.create_local t.buf ~pos:#0L ~len:t.len)
+          ~dst_pos:0
+          ~len:(I64.to_int_trunc t.len);
+        t.pos <- #0L)
+    in
+    (try
+       while t.len < n do
+         let free_space =
+           Slice.create_local
+             t.buf
+             ~pos:(t.pos + t.len)
+             ~len:((Bigstring.length t.buf |> I64.of_int) - t.pos - t.len)
+         in
+         assert (t.len + Slice.length free_space >= n);
+         let got =
+           Int.O.(
+             Int.min
+               (Slice.length free_space |> I64.to_int_trunc)
+               (Bigstring.length bs - offset))
+         in
+         [%debug_assert Int.O.(got >= 0)];
+         Bigstring.blit
+           ~src:bs
+           ~src_pos:offset
+           ~dst:(Slice.Expert.bytes free_space)
+           ~dst_pos:(Slice.Expert.pos free_space |> I64.to_int_trunc)
+           ~len:got;
+         if Int.O.(got = 0) then raise End_of_file;
+         t.len <- t.len + I64.of_int got;
+         t.fd <- T #(String, bs, Int.O.(offset + got))
+       done;
+       assert (buffered_bytes t >= n)
+     with
+     | End_of_file ->
+       t.fd <- T #(Empty, (), ());
+       raise End_of_file)
+  | T #(File, fd, ()) ->
+    let fd = Core_unix.File_descr.to_i32 fd |> I64.of_i32 in
     (* If the buffer is empty, we might as well use all of it: *)
     if t.len = #0L then t.pos <- #0L;
     let () =
@@ -137,7 +223,7 @@ let ensure_slow_path t n =
        assert (buffered_bytes t >= n)
      with
      | End_of_file ->
-       t.fd <- I64.Option.none ();
+       t.fd <- T #(Empty, (), ());
        raise End_of_file)
 ;;
 
@@ -163,6 +249,26 @@ let take_all t f =
     let result = f (peek t) in
     consume t t.len;
     result
+;;
+
+let ensure_line t =
+  let open I64.O in
+  (* Return the index of the first '\n', reading more data as needed. *)
+  let[@loopify] rec aux t i =
+    let slice = Slice.unsafe_slice (peek t) ~pos:i ~len:(t.len - i) in
+    match%optional_u.I64.Option Slice.memchr slice '\n' with
+    | None ->
+      ensure t (t.len + #1L);
+      aux t i
+    | Some pos -> pos
+  in
+  match aux t #0L with
+  | exception End_of_file when t.len > #0L -> ()
+  | nl ->
+    let _len =
+      if nl > #0L && Char.equal (unsafe_get t (nl - #1L)) '\r' then nl - #1L else nl
+    in
+    ()
 ;;
 
 let line t ~f =

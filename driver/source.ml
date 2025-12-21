@@ -28,7 +28,6 @@ let iter t ~buffer_size ~max_buffer_size ~f =
     Queue.enqueue q dir_path;
     while not (Queue.is_empty q) do
       let dir_path = Queue.dequeue_exn q in
-      (* print_endline [%string "next: %{dir_path}"]; *)
       let dir = Og_utils.Fs.Dir.open_ dir_path in
       match%optional_u.Fs.Dir.Option dir with
       | None -> ()
@@ -45,7 +44,6 @@ let iter t ~buffer_size ~max_buffer_size ~f =
             then ()
             else Queue.enqueue q path
           | true ->
-            (* print_s [%message "opening" (path : string)]; *)
             if not (Glob_ignore.should_ignore gitignore path)
             then (
               let fd = open_ ~path ~flags:#0l |> Core_unix.File_descr.of_i32 in

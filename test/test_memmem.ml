@@ -49,6 +49,8 @@ module Make (String : sig
       -> I64.Option.t
   end) =
 struct
+  (* FIXME: This is insufficient. It failed to pick up a trivial bug. *)
+
   let%expect_test "quickcheck" =
     let num_found = ref 0 in
     let num_not_found = ref 0 in

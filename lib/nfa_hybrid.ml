@@ -78,6 +78,8 @@ type t =
   }
 [@@deriving sexp_of]
 
+let look_for_constant t = t.look_for_constant
+
 let build ~flags ~look_for_constant (local_ (f : Builder.t @ local -> State.t)) : t =
   let builder = Builder.create () in
   let accepting_state = f builder in

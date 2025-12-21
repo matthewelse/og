@@ -18,7 +18,7 @@ module%template
 
        module Ptr : sig
          type str := t
-         type t : k
+         type t : k [@@deriving sexp_of]
 
          val unsafe_get_vec : t -> Vec.t
          val unsafe_get_char : t -> char
@@ -30,6 +30,11 @@ module%template
        val root : t -> pos:i64 -> len:i64 -> Ptr.t
      end) =
 struct
+  let _to_string ptr ~len =
+    Core.String.init (I64.to_int_trunc len) ~f:(fun i ->
+      String.Ptr.unsafe_get_char (String.Ptr.advance ptr (I64.of_int i)))
+  ;;
+
   let[@loopify] rec memcmp a b ~len =
     let open I64.O in
     if len <= #0L
@@ -107,7 +112,7 @@ struct
               then I64.Option.none ()
               else if candidates land #1L = #1L
                       && memcmp
-                           (String.Ptr.advance haystack #1L)
+                           (String.Ptr.advance haystack (i + #1L))
                            (String.Ptr.advance needle #1L)
                            ~len:(needle_len - #2L)
               then I64.Option.some i
@@ -150,7 +155,7 @@ module String =
       type t = string
 
       module Ptr = struct
-        type t = #(string * pos:i64 * len:i64)
+        type t = #(string * pos:i64 * len:i64) [@@deriving sexp_of]
 
         let in_range #(_, ~pos, ~len) =
           let open I64.O in
@@ -191,10 +196,10 @@ module Bytes =
   Make [@kind value & bits64 & bits64]
     (Vec)
     (struct
-      type t = Bytes.t
+      type t = Bytes.t [@@deriving sexp_of]
 
       module Ptr = struct
-        type t = #(Bytes.t * pos:i64 * len:i64)
+        type t = #(Bytes.t * pos:i64 * len:i64) [@@deriving sexp_of]
 
         let in_range #(_, ~pos, ~len) =
           let open I64.O in
@@ -256,6 +261,15 @@ module Bigstring =
           #(pos:Iptr.Hex_unsigned.t
            * start:Iptr.Hex_unsigned.t
            * end_:Iptr.Hex_unsigned.t)
+        [@@deriving sexp_of]
+
+        let sexp_of_t #(~pos, ~start, ~end_) =
+          let open Iptr.O in
+          let pos = pos - start in
+          let end_ = end_ - start in
+          let start = #0n in
+          sexp_of_t #(~pos, ~start, ~end_)
+        ;;
 
         let advance #(~pos, ~start, ~end_) by =
           let pos = Iptr.O.(pos + Iptr.of_i64_trunc by) in
