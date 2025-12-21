@@ -37,10 +37,7 @@ let%expect_test "test conversion to nfa" =
     ((impl Nfa_hybrid)
      (nfa
       ((nfa ((Match (a) 1) (Match (b) 2) (Match (c) 3) Accept)) (cache ())
-       (accepting_state 3) (flags ())
-       (look_for_constant
-        (((bad_character <opaque>) (bad_suffix <opaque>)
-          (pattern ((bytes abc) (pos 0) (len 3)))))))))
+       (accepting_state 3) (flags ()) (look_for_constant (abc)))))
     |}];
   test "a|bc";
   [%expect
@@ -286,10 +283,7 @@ let%expect_test "test conversion to nfa" =
     ((impl Nfa_hybrid)
      (nfa
       ((nfa ((Split 1 2) (Match (a) 2) (Match (b) 3) (Match (c) 4) Accept))
-       (cache ()) (accepting_state 4) (flags ())
-       (look_for_constant
-        (((bad_character <opaque>) (bad_suffix <opaque>)
-          (pattern ((bytes bc) (pos 0) (len 2)))))))))
+       (cache ()) (accepting_state 4) (flags ()) (look_for_constant (bc)))))
     |}];
   test "a+bc";
   [%expect
@@ -321,10 +315,7 @@ let%expect_test "test conversion to nfa" =
     ((impl Nfa_hybrid)
      (nfa
       ((nfa ((Match (a) 1) (Split 2 0) (Match (b) 3) (Match (c) 4) Accept))
-       (cache ()) (accepting_state 4) (flags ())
-       (look_for_constant
-        (((bad_character <opaque>) (bad_suffix <opaque>)
-          (pattern ((bytes bc) (pos 0) (len 2)))))))))
+       (cache ()) (accepting_state 4) (flags ()) (look_for_constant (bc)))))
     |}];
   test "(abc)+";
   [%expect
@@ -366,9 +357,7 @@ let%expect_test "test conversion to nfa" =
      (nfa
       ((nfa ((Match (a) 1) (Match (b) 2) (Match (c) 3) Accept)) (cache ())
        (accepting_state 3) (flags (Require_sol Require_eol))
-       (look_for_constant
-        (((bad_character <opaque>) (bad_suffix <opaque>)
-          (pattern ((bytes abc) (pos 0) (len 3)))))))))
+       (look_for_constant (abc)))))
     |}];
   test "^#?i?n?c?l?u?d?e?";
   [%expect

@@ -67,8 +67,29 @@ struct
         |> I64.of_int
         |> Vec.set1
       in
-      let rec aux_simd haystack =
+      let rec aux_serial haystack =
         if String.Ptr.not_past_end (String.Ptr.advance haystack (needle_len - #1L))
+        then (
+          let rec loop haystack needle len =
+            if len <= #0L
+            then true
+            else
+              Char.equal
+                (String.Ptr.unsafe_get_char needle)
+                (String.Ptr.unsafe_get_char haystack)
+              && loop
+                   (String.Ptr.advance haystack #1L)
+                   (String.Ptr.advance needle #1L)
+                   (len - #1L)
+          in
+          if loop haystack needle needle_len
+          then haystack
+          else aux_serial (String.Ptr.advance haystack #1L))
+        else String.Ptr.advance haystack needle_len
+      in
+      let rec aux_simd haystack =
+        if String.Ptr.not_past_end
+             (String.Ptr.advance haystack (needle_len - #1L + Vec.size_bytes () - #1L))
         then (
           let block_first = String.Ptr.unsafe_get_vec haystack in
           let block_last =
@@ -96,7 +117,7 @@ struct
             | None -> aux_simd (String.Ptr.advance haystack (Vec.size_bytes ()))
             | Some offset -> String.Ptr.advance haystack offset)
           else aux_simd (String.Ptr.advance haystack (Vec.size_bytes ())))
-        else String.Ptr.advance haystack needle_len
+        else aux_serial haystack
       in
       let haystack = aux_simd haystack in
       String.Ptr.finalize haystack haystack_str)

@@ -74,7 +74,7 @@ type t =
   ; cache : DState.t option Charmap.t DState.Table.t
   ; accepting_state : State.t
   ; flags : Flags.t
-  ; look_for_constant : Slice.Search_pattern.t option
+  ; look_for_constant : Bigstring.t option
   }
 [@@deriving sexp_of]
 
@@ -172,9 +172,7 @@ let compile (re : Regex0.t) =
   build
     ~flags:re.flags
     ~look_for_constant:
-      (Option.map
-         ~f:(fun str -> Slice.Search_pattern.create (Slice.of_string str))
-         (Regex0.best_constant re))
+      (Option.map ~f:(fun str -> Bigstring.of_string str) (Regex0.best_constant re))
     (fun builder -> aux builder re.re ~initial_state:(Builder.fresh_state builder))
 ;;
 
@@ -237,7 +235,15 @@ let eval t input =
   let maybe_contains_constant =
     match t.look_for_constant with
     | None -> true
-    | Some pattern -> Slice.Search_pattern.index pattern input |> I64.Option.is_some
+    | Some pattern ->
+      Camlzilla_kernel.Memmem.Bigstring.memmem
+        ~needle:pattern
+        ~needle_pos:#0L
+        ~needle_len:(Bigstring.length pattern |> I64.of_int)
+        ~haystack:(Slice.Expert.bytes input)
+        ~haystack_pos:(Slice.Expert.pos input)
+        ~haystack_len:(Slice.Expert.len input)
+      |> I64.Option.is_some
   in
   let generation = ref 0 in
   let state_generations = Array.create_local ~len:(Iarray.length t.nfa) (-1) in
