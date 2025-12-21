@@ -12,6 +12,7 @@ BUILTIN(caml_neon_int8x16_shrn)
 BUILTIN(caml_neon_int8x16_maxv)
 BUILTIN(caml_neon_int8x16_minv)
 BUILTIN(caml_neon_int8x16_bitwise_or)
+BUILTIN(caml_neon_int8x16_bitwise_and)
 
 BUILTIN(caml_neon_int16x8_cmpeq)
 BUILTIN(caml_neon_int16x8_dup_n)

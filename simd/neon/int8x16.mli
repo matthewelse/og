@@ -40,6 +40,14 @@ external set1 : i64 -> t = "ocaml_simd_neon_unreachable" "caml_neon_int8x16_dup_
 external ( = ) : t -> t -> mask = "ocaml_simd_neon_unreachable" "caml_neon_int8x16_cmpeq"
 [@@noalloc] [@@builtin]
 
+external ( land )
+  :  t
+  -> t
+  -> t
+  @@ portable
+  = "ocaml_simd_neon_unreachable" "caml_neon_int8x16_bitwise_and"
+[@@noalloc] [@@builtin]
+
 external ( lor )
   :  t
   -> t

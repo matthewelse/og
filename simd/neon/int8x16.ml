@@ -48,6 +48,14 @@ external ( = )
   = "ocaml_simd_neon_unreachable" "caml_neon_int8x16_cmpeq"
 [@@noalloc] [@@builtin]
 
+external ( land )
+  :  t
+  -> t
+  -> t
+  @@ portable
+  = "ocaml_simd_neon_unreachable" "caml_neon_int8x16_bitwise_and"
+[@@noalloc] [@@builtin]
+
 external ( lor )
   :  t
   -> t

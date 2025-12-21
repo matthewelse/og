@@ -10,6 +10,14 @@
   (language c)
   (names camlzilla_stubs))
  (preprocess
-  (pps ppx_optional ppx_og ppx_template -mode -- %{profile}))
+  (pps
+   ppx_optional
+   ppx_og
+   ppx_sexp_conv
+   ppx_sexp_message
+   ppx_template
+   -mode
+   --
+   %{profile}))
  ;;
  )
