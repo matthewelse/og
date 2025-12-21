@@ -1,7 +1,7 @@
 open! Core
 open Unboxed
 
-module type Search = sig
+module type Search = sig @@ portable
   type slice
   type t [@@deriving sexp_of]
 
@@ -11,7 +11,7 @@ module type Search = sig
   val pattern : t @ local -> slice @ local
 end
 
-module type S = sig
+module type S = sig @@ portable
   type data
 
   (** A value of [t] can always be assumed to contain a valid range, i.e. [pos >= 0],
@@ -68,12 +68,11 @@ module type S = sig
       returns [None]. *)
   val rmemchr : t @ local -> char -> I64.Option.t @ local
 
-  val output : t @ local -> Out_channel.t -> unit
   val print_endline : t @ local -> unit
   val iter : t @ local -> f:(char -> unit) @ local -> unit
   val exists : t @ local -> f:(char -> bool) @ local -> bool
 
-  module Expert : sig
+  module Expert : sig @@ portable
     val bytes : t @ local -> data
     val pos : t @ local -> int64#
     val len : t @ local -> int64#
@@ -85,13 +84,13 @@ module type S = sig
   module Search_pattern : Search with type slice := t
 end
 
-module type S_mutable = sig
+module type S_mutable = sig @@ portable
   include S
 
   val blit : (t, t) Blit.blit
   val unsafe_blit : (t, t) Blit.blit
 end
 
-module type Slice = sig
+module type Slice = sig @@ portable
   include S_mutable with type data := Bigstring.t
 end

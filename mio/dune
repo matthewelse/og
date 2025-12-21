@@ -1,0 +1,20 @@
+(library
+ (name mio)
+ (libraries base camlzilla unboxed)
+ (foreign_stubs
+  (language c)
+  (names mio_stubs))
+ (preprocess
+  (pps
+   ppx_fields_conv
+   ppx_for_loop
+   ppx_globalize
+   ppx_og
+   ppx_optional
+   ppx_sexp_conv
+   ppx_sexp_message
+   -mode
+   --
+   %{profile}))
+ ;
+ )

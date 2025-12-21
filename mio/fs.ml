@@ -24,13 +24,13 @@ module Dirent = struct
     :  t
     -> string @ local
     @@ portable
-    = "og_utils_dirent_name_local" "og_utils_dirent_name_local"
+    = "mio_unreachable" "mio_dirent_name_local"
 
   external is_regular_file
     :  t
     -> bool
     @@ portable
-    = "og_utils_dirent_is_regular_file" "og_utils_dirent_is_regular_file"
+    = "mio_unreachable" "mio_dirent_is_regular_file"
   [@@noalloc]
 end
 
@@ -51,11 +51,18 @@ module Dir = struct
     end
   end
 
-  external open_ : string @ local -> Option.t @@ portable = "opendir" "opendir"
+  external open_ : string @ local -> Option.t @@ portable = "mio_unreachable" "opendir"
   [@@noalloc]
 
-  external close : t -> vnit @@ portable = "closedir" "closedir" [@@noalloc]
-  external read : t -> Dirent.Option.t @@ portable = "readdir" "readdir" [@@noalloc]
+  external close : t -> vnit @@ portable = "mio_unreachable" "closedir" [@@noalloc]
+
+  let close t =
+    match close t with
+    | (_ : vnit) -> ()
+  ;;
+
+  external read : t -> Dirent.Option.t @@ portable = "mio_unreachable" "readdir"
+  [@@noalloc]
 
   let iter_entries t ~f =
     let rec aux t ~f =

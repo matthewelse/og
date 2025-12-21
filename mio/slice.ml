@@ -35,7 +35,6 @@ module Data = struct
 
   let length t = length t |> I64.of_int
   let of_string s = of_string s
-  let output t channel ~pos ~len = Bigstring_unix.really_output channel ~pos ~len t
 end
 
 type t =
@@ -194,7 +193,7 @@ let splat c =
 ;;
 
 let memchr t c : I64.Option.t =
-  Camlzilla_kernel.Memchr.Bigstring.memchr t.bytes c ~pos:t.pos ~len:t.len
+  Camlzilla.Memchr.Bigstring.memchr t.bytes c ~pos:t.pos ~len:t.len
 ;;
 
 let rec rmemchr_slow_path t c ~offset : I64.Option.t =
@@ -249,14 +248,6 @@ let rec memcmp_fast_path t t' ~offset ~length =
 let memcmp (local_ t) (local_ t') =
   let open I64.O in
   t.len = t'.len && memcmp_fast_path t t' ~offset:#0L ~length:t.len
-;;
-
-let output t out_channel =
-  Data.output
-    t.bytes
-    out_channel
-    ~pos:(I64.to_int_trunc t.pos)
-    ~len:(I64.to_int_trunc t.len)
 ;;
 
 module KMP = struct

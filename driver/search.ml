@@ -70,7 +70,7 @@ let main
              while
                let chunk = Buffered_reader.peek reader in
                match%optional_u.I64.Option
-                 Camlzilla_kernel.Memmem.Bigstring.memmem
+                 Camlzilla.Memmem.Bigstring.memmem
                    ~needle:(Slice.Expert.bytes needle)
                    ~needle_pos:#0L
                    ~needle_len:(Slice.length needle)

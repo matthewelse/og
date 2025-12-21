@@ -3,6 +3,7 @@
  (libraries
   core
   core_unix.sys_unix
+  mio
   og_utils
   vec
   ;;

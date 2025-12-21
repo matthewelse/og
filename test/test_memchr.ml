@@ -135,7 +135,6 @@ struct
       (fun (~core_pos:x, ~memchr_pos:y) -> [%compare.equal: int64 option] x y)
       (~core_pos, ~memchr_pos);
     [%expect {| |}]
-  
   ;;
 
   let%expect_test "rmemchr should produce the same output as [String.rfndex]" =
@@ -187,10 +186,10 @@ let string_generator =
 module _ = Make (struct
     include String
 
-    let memchr = Camlzilla_kernel.Memchr.String.memchr
-    let memchr2 = Camlzilla_kernel.Memchr.String.memchr2
-    let memchr3 = Camlzilla_kernel.Memchr.String.memchr3
-    let rmemchr = Camlzilla_kernel.Memchr.String.rmemchr
+    let memchr = Camlzilla.Memchr.String.memchr
+    let memchr2 = Camlzilla.Memchr.String.memchr2
+    let memchr3 = Camlzilla.Memchr.String.memchr3
+    let rmemchr = Camlzilla.Memchr.String.rmemchr
     let quickcheck_generator = string_generator
     let rfindi ?pos t ~f = rfindi ?pos t ~f
   end)
@@ -198,10 +197,10 @@ module _ = Make (struct
 module _ = Make (struct
     include Bytes
 
-    let memchr = Camlzilla_kernel.Memchr.Bytes.memchr
-    let memchr2 = Camlzilla_kernel.Memchr.Bytes.memchr2
-    let memchr3 = Camlzilla_kernel.Memchr.Bytes.memchr3
-    let rmemchr = Camlzilla_kernel.Memchr.Bytes.rmemchr
+    let memchr = Camlzilla.Memchr.Bytes.memchr
+    let memchr2 = Camlzilla.Memchr.Bytes.memchr2
+    let memchr3 = Camlzilla.Memchr.Bytes.memchr3
+    let rmemchr = Camlzilla.Memchr.Bytes.rmemchr
 
     let rfindi ?pos t ~f =
       String.rfindi
@@ -222,10 +221,10 @@ module _ = Make (struct
 module _ = Make (struct
     include Bigstring
 
-    let memchr = Camlzilla_kernel.Memchr.Bigstring.memchr
-    let memchr2 = Camlzilla_kernel.Memchr.Bigstring.memchr2
-    let memchr3 = Camlzilla_kernel.Memchr.Bigstring.memchr3
-    let rmemchr = Camlzilla_kernel.Memchr.Bigstring.rmemchr
+    let memchr = Camlzilla.Memchr.Bigstring.memchr
+    let memchr2 = Camlzilla.Memchr.Bigstring.memchr2
+    let memchr3 = Camlzilla.Memchr.Bigstring.memchr3
+    let rmemchr = Camlzilla.Memchr.Bigstring.rmemchr
     let rfindi ?pos t ~f = String.rfindi ?pos (Bigstring.to_string t) ~f
     let findi t ~f = String.findi (to_string t) ~f
     let quickcheck_generator = Quickcheck.Generator.map ~f:of_string string_generator

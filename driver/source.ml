@@ -13,9 +13,6 @@ let is_hidden_file path =
   Char.equal '.' base.[0] || String.is_suffix base ~suffix:"~"
 ;;
 
-external open_ : path:string -> flags:i32 -> i32 = "open" "open"
-external close : i32 -> i32 = "close" "close"
-
 let iter t ~buffer_size ~max_buffer_size ~f =
   match t with
   | Stdin ->
@@ -28,7 +25,7 @@ let iter t ~buffer_size ~max_buffer_size ~f =
     Queue.enqueue q dir_path;
     while not (Queue.is_empty q) do
       let dir_path = Queue.dequeue_exn q in
-      let dir = Og_utils.Fs.Dir.open_ dir_path in
+      let dir = Mio.Fs.Dir.open_ dir_path in
       match%optional_u.Fs.Dir.Option dir with
       | None -> ()
       | Some dir ->
@@ -46,7 +43,7 @@ let iter t ~buffer_size ~max_buffer_size ~f =
           | true ->
             if not (Glob_ignore.should_ignore gitignore path)
             then (
-              let fd = open_ ~path ~flags:#0l |> Core_unix.File_descr.of_i32 in
+              let fd = Fd.open_ ~path ~flags:#0l in
               let reader =
                 Buffered_reader.of_fd
                   fd
@@ -55,10 +52,9 @@ let iter t ~buffer_size ~max_buffer_size ~f =
               in
               if not (Buffered_reader.is_probably_binary reader ~num_bytes_to_read:#64L)
               then f path reader;
-              close (Core_unix.File_descr.to_i32 fd) |> (ignore : i32 -> unit))
+              Fd.close fd)
             else print_s [%message "skipping path" (path : string)]);
-        (match Fs.Dir.close dir with
-         | (_ : Fs.vnit) -> ())
+        Fs.Dir.close dir
       (* TODO: enqueue something to indicate that you don't need to pay attention to a particular gitignore anymore *)
     done
 ;;

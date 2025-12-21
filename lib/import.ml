@@ -1,4 +1,5 @@
 include Og_utils
+module Slice = Mio.Slice
 
 module List = struct
   include Core.List

@@ -1,3 +1,5 @@
+@@ portable
+
 open! Core
 open Unboxed
 
@@ -6,13 +8,14 @@ exception Buffer_limit_exceeded
 type t
 
 val stdin : ?initial_size:int -> max_size:int -> unit -> t
-val of_fd : ?initial_size:int -> max_size:int -> Core_unix.File_descr.t -> t
+val of_fd : ?initial_size:int -> max_size:int -> Fd.t -> t
 val of_string : ?initial_size:int -> max_size:int -> string -> t
 
 (** [line t ~f] returns a single line from the underlying file descriptor. Each slice will
     _not_ include a trailing newline character. *)
 val line : t -> f:(Slice.t @ local -> 'a) @ local -> 'a
 
+(** Ensures that this reader's internal buffer contains at least one line of text. *)
 val ensure_line : t -> unit
 
 (** [chunk t ~f] returns a single chunk from the underlying file descriptor, many lines at

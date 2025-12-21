@@ -3,8 +3,6 @@
 open! Core
 open! Unboxed
 
-type vnit : void
-
 module Dirent : sig
   type t : word
 
@@ -30,7 +28,7 @@ module Dir : sig
   end
 
   val open_ : string @ local -> Option.t
-  val close : t -> vnit
+  val close : t -> unit
   val read : t -> Dirent.Option.t
   val iter_entries : t -> f:(Dirent.t -> unit) @ local -> unit
 end

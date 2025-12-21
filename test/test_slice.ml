@@ -1,7 +1,7 @@
 open! Core
 open! Unboxed
 open! Import
-module Slice = Og_utils.Slice
+module Slice = Mio.Slice
 
 let%expect_test "string slices" =
   Quickcheck.test
@@ -255,7 +255,8 @@ let%expect_test _ =
   print_s
     [%message
       (a : I64.Hex_unsigned.t) (b : I64.Hex_unsigned.t) (res : I64.Hex_unsigned.t)];
-  [%expect {|
+  [%expect
+    {|
     ((a   0x556560ffff19240e)
      (b   0x8080808080808080)
      (res 0x8080000000))

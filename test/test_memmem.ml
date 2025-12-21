@@ -4,7 +4,7 @@ open! Import
 
 let%expect_test "basic example" =
   let res =
-    Camlzilla_kernel.Memmem.String.memmem
+    Camlzilla.Memmem.String.memmem
       ~haystack:"abcabcabcabc"
       ~haystack_len:#12L
       ~haystack_pos:#0L
@@ -21,7 +21,7 @@ let%expect_test "basic example" =
   let haystack = "y\148xp\255Xf\014iKaCaTj2\212" in
   let needle = "XP" in
   let res =
-    Camlzilla_kernel.Memmem.String.memmem
+    Camlzilla.Memmem.String.memmem
       ~haystack
       ~haystack_len:(String.length haystack |> I64.of_int)
       ~haystack_pos:#0L
@@ -88,18 +88,18 @@ end
 module _ = Make (struct
     include String
 
-    let memmem = Camlzilla_kernel.Memmem.String.memmem
+    let memmem = Camlzilla.Memmem.String.memmem
   end)
 
 module _ = Make (struct
     include Bytes
 
-    let memmem = Camlzilla_kernel.Memmem.Bytes.memmem
+    let memmem = Camlzilla.Memmem.Bytes.memmem
   end)
 
 module _ = Make (struct
     include Bigstring
 
     let of_string s = of_string s
-    let memmem = Camlzilla_kernel.Memmem.Bigstring.memmem
+    let memmem = Camlzilla.Memmem.Bigstring.memmem
   end)

@@ -7,7 +7,6 @@
   (language c)
   (names og_utils_stubs))
  (libraries
-  camlzilla_kernel
   core
   core_unix
   core_unix.bigstring_unix

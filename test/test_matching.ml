@@ -6,7 +6,7 @@ let%expect_test "regular expression matching" =
     let test scenario ~ok_inputs ~error_inputs =
       let re = Og.Regex.of_string scenario |> Or_error.ok_exn |> Og.Regex.compile ~impl in
       let test_str re str =
-        let slice = Og_utils.Slice.of_string str in
+        let slice = Mio.Slice.of_string str in
         Og.Regex.Compiled.matches re slice
       in
       let ok_matches = List.find ok_inputs ~f:(Fn.non (test_str re)) in
@@ -18,8 +18,7 @@ let%expect_test "regular expression matching" =
       "abc"
       ~ok_inputs:[ "abc"; "   abc"; "abcabc" ]
       ~error_inputs:[ "a"; "ab"; "abd"; "ab c"; "" ];
-    [%expect
-      {| |}];
+    [%expect {| |}];
     test "a|bc" ~ok_inputs:[ "a"; "bc"; "abc"; "ab" ] ~error_inputs:[ "b"; "c"; "" ];
     [%expect {| |}];
     test
@@ -30,26 +29,22 @@ let%expect_test "regular expression matching" =
     test "[^abc]" ~ok_inputs:[ "d"; "da" ] ~error_inputs:[ "a"; "b"; "c"; "abc" ];
     [%expect {| |}];
     test "\\d" ~ok_inputs:[ "012345678"; "1"; "9"; "a9" ] ~error_inputs:[ "a" ];
-    [%expect
-      {| |}];
+    [%expect {| |}];
     test "\\w" ~ok_inputs:[ "a"; "0"; "a." ] ~error_inputs:[ "."; "\\" ];
     [%expect {| |}];
     test "a?bc" ~ok_inputs:[ "abc"; "bc"; "aabc" ] ~error_inputs:[ "a"; "b"; "c" ];
-    [%expect
-      {| |}];
+    [%expect {| |}];
     test "a+bc" ~ok_inputs:[ "aabc" ] ~error_inputs:[ "bc" ];
     [%expect {| |}];
     test "(abc)+" ~ok_inputs:[ "abc"; "abcabc" ] ~error_inputs:[ ""; "a"; "ab" ];
     [%expect {| |}];
     test "^abc$" ~ok_inputs:[ "abc" ] ~error_inputs:[ ""; " abc"; "abc "; " abc " ];
-    [%expect
-      {| |}];
+    [%expect {| |}];
     test
       "nananax?x"
       ~ok_inputs:[ "nananax"; "nananaxx"; "nanananaxx" ]
       ~error_inputs:[ "nanana" ];
-    [%expect
-      {| |}];
+    [%expect {| |}];
     test
       "^#?i?n?c?l?u?d?e?"
       ~ok_inputs:
@@ -57,8 +52,7 @@ let%expect_test "regular expression matching" =
       ~error_inputs:[];
     [%expect {| |}];
     test "^[]$" ~ok_inputs:[] ~error_inputs:[ ""; "[]"; "[] "; " []"; "a"; "][" ];
-    [%expect
-      {| |}])
+    [%expect {| |}])
 ;;
 
 let%expect_test "regression test: `nfa_hybrid` bug" =
@@ -71,7 +65,7 @@ let%expect_test "regression test: `nfa_hybrid` bug" =
     }
   in
   let regex = Og.Regex.compile ~impl:Og.Implementation.Nfa_hybrid regex in
-  let slice = Og_utils.Slice.of_string "./certs/common.c" in
+  let slice = Mio.Slice.of_string "./certs/common.c" in
   print_s [%message (regex : Og.Regex.Compiled.t)];
   [%expect
     {|

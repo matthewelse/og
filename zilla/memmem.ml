@@ -4,6 +4,7 @@ open! Unboxed
 module%template
   [@kind k = (word & word & word, value & bits64 & bits64)] Make
     (Vec : sig
+     @@ portable
        type t : vec128 [@@deriving sexp_of]
 
        val ( = ) : t -> t -> t
@@ -14,6 +15,7 @@ module%template
        val size_bytes : unit -> i64
      end)
     (String : sig
+     @@ portable
        type t
 
        module Ptr : sig
@@ -240,12 +242,14 @@ external unsafe_iptr_of_bigstring
   :  Base_bigstring.t
   -> pos:i64
   -> (nativeint#[@unboxed])
+  @@ portable
   = "caml_native_pointer_of_bigstring_bytecode" "caml_native_pointer_of_bigstring"
 [@@noalloc] [@@no_effects] [@@no_coeffects]
 
 external iptr_load_untagged_char
   :  (iptr[@unboxed])
   -> (char[@untagged])
+  @@ portable
   = "caml_native_pointer_load_untagged_char_bytecode"
     "caml_native_pointer_load_unsigned_int8"
 [@@noalloc] [@@no_effects] [@@builtin]

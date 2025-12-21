@@ -41,7 +41,7 @@ extern void __cpu_suspend_save(u32 *ptr, u32 ptrsz, u32 sp, u32 *save_ptr);
     Buffered_reader.ensure_line reader;
     let chunk = Buffered_reader.peek reader in
     match%optional_u.I64.Option
-      Camlzilla_kernel.Memmem.Bigstring.memmem
+      Camlzilla.Memmem.Bigstring.memmem
         ~needle:(Slice.Expert.bytes needle)
         ~needle_pos:#0L
         ~needle_len:(Slice.length needle)

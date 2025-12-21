@@ -1,5 +1,5 @@
 (library
- (name camlzilla_kernel)
+ (name camlzilla)
  (libraries base base_bigstring unboxed ocaml_simd_neon)
  ;; This library contains the most highly-optimised primitives, so disable poll insertion.
  ;;

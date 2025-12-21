@@ -1,6 +1,6 @@
 (library
  (name og_driver)
- (libraries core og og_utils)
+ (libraries core mio og og_utils)
  (preprocess
   (pps ppx_string ppx_sexp_message ppx_let ppx_optional ppx_template))
  ;;

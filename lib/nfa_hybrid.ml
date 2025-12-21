@@ -238,7 +238,7 @@ let eval t input =
     match t.look_for_constant with
     | None -> true
     | Some pattern ->
-      Camlzilla_kernel.Memmem.Bigstring.memmem
+      Camlzilla.Memmem.Bigstring.memmem
         ~needle:pattern
         ~needle_pos:#0L
         ~needle_len:(Bigstring.length pattern |> I64.of_int)
