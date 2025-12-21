@@ -9,3 +9,7 @@ module Backends = struct
   module Nfa_hybrid = Nfa_hybrid
   module Nfa_vm = Nfa_vm
 end
+
+module For_testing = struct
+  module Glob = Glob
+end

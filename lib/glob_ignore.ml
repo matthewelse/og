@@ -1,15 +1,26 @@
 open! Core
+open Unboxed
 open! Import
 
-type t = (#(string * Regex.Compiled.t) Vec.t[@kind value & value])
+type t = (#(Slice.t * Regex.Compiled.t) Vec.t[@kind value & value])
 
 let create () = (Vec.create [@kind value & value]) ()
 
 let should_ignore t path =
+  let path = Slice.of_string path in
   (Vec.exists [@kind value & value]) t ~f:(fun #(dir, regex) ->
-    match String.chop_prefix path ~prefix:dir with
-    | None -> false
-    | Some path -> Regex.Compiled.matches regex (Slice.of_string path))
+    let open I64.O in
+    Slice.length path >= Slice.length dir
+    &&
+    match Slice.memcmp path dir with
+    | false -> false
+    | true ->
+      Regex.Compiled.matches
+        regex
+        (Slice.unsafe_slice
+           path
+           ~pos:(Slice.length dir)
+           ~len:(Slice.length path - Slice.length dir)) [@nontail])
 ;;
 
 let parse_gitignore (t : t) ~dir ~gitignore_path =
@@ -29,5 +40,5 @@ let parse_gitignore (t : t) ~dir ~gitignore_path =
       ; flags = Flags.of_list [ Require_eol; Require_sol ]
       }
   in
-  (Vec.push_back [@kind value & value]) t #(dir, regex)
+  (Vec.push_back [@kind value & value]) t #(Slice.of_string dir, regex)
 ;;
