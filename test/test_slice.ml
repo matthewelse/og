@@ -255,11 +255,18 @@ let%expect_test _ =
   print_s
     [%message
       (a : I64.Hex_unsigned.t) (b : I64.Hex_unsigned.t) (res : I64.Hex_unsigned.t)];
-  [%expect {| ((a 0x556560ffff19240e) (b 0x8080808080808080) (res 0x8080000000)) |}];
+  [%expect {|
+    ((a   0x556560ffff19240e)
+     (b   0x8080808080808080)
+     (res 0x8080000000))
+    |}];
   let clz = I64.clz res in
   let ctz = I64.ctz res in
   print_s [%message (clz : i64) (ctz : i64)];
-  [%expect {| ((clz 24) (ctz 31)) |}];
+  [%expect {|
+    ((clz 24)
+     (ctz 31))
+    |}];
   print_s [%message (#3L + #8L - (clz / #8L) : i64)];
   [%expect {| ("(#3L + #8L) - (clz / #8L)" 8) |}]
 ;;

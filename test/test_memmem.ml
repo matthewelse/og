@@ -76,7 +76,10 @@ struct
             [%compare.equal: int64 option] core_pos memmem_pos)
           (~core_pos, ~memmem_pos));
     print_s [%message (!num_found : int) (!num_not_found : int)];
-    [%expect {| ((!num_found 909) (!num_not_found 9091)) |}]
+    [%expect {|
+      ((!num_found     909)
+       (!num_not_found 9091))
+      |}]
   ;;
 end
 
