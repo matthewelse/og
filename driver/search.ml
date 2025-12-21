@@ -52,7 +52,7 @@ let main
   let%bind.Or_error re = Og.Regex.of_string pattern in
   let regex = Og.Regex.compile ?impl re in
   Source.iter source ~buffer_size ~max_buffer_size ~f:(fun _path reader ->
-    if Buffered_reader.is_probably_binary reader
+    if Buffered_reader.is_probably_binary reader ~num_bytes_to_read:#3L
     then ()
     else (
       Stats.on_file_searched stats;

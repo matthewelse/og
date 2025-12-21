@@ -55,7 +55,8 @@ let iter t ~buffer_size ~max_buffer_size ~f =
                   ~initial_size:buffer_size
                   ~max_size:max_buffer_size
               in
-              if not (Buffered_reader.is_probably_binary reader) then f path reader;
+              if not (Buffered_reader.is_probably_binary reader ~num_bytes_to_read:#64L)
+              then f path reader;
               close (Core_unix.File_descr.to_i32 fd) |> (ignore : i32 -> unit))
             else print_s [%message "skipping path" (path : string)]);
         (match Fs.Dir.close dir with

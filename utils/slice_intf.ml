@@ -71,6 +71,7 @@ module type S = sig
   val output : t @ local -> Out_channel.t -> unit
   val print_endline : t @ local -> unit
   val iter : t @ local -> f:(char -> unit) @ local -> unit
+  val exists : t @ local -> f:(char -> bool) @ local -> bool
 
   module Expert : sig
     val bytes : t @ local -> data

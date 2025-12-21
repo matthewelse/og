@@ -168,7 +168,7 @@ let take_all t f =
 let line t ~f =
   let open I64.O in
   (* Return the index of the first '\n', reading more data as needed. *)
-  let rec aux t i =
+  let[@loopify] rec aux t i =
     let slice = Slice.unsafe_slice (peek t) ~pos:i ~len:(t.len - i) in
     match%optional_u.I64.Option Slice.memchr slice '\n' with
     | None ->
@@ -189,7 +189,7 @@ let line t ~f =
 
 let chunk t ~f =
   let open I64.O in
-  let rec aux t i =
+  let[@loopify] rec aux t i =
     let slice = Slice.unsafe_slice (peek t) ~pos:i ~len:(t.len - i) in
     match%optional_u.I64.Option Slice.rmemchr slice '\n' with
     | None ->
@@ -209,12 +209,11 @@ let chunk t ~f =
 
 let stdin ?initial_size ~max_size () = of_fd ?initial_size ~max_size Core_unix.stdin
 
-let is_probably_binary ?(num_bytes_to_read = 3) t =
-  (try ensure t (I64.of_int num_bytes_to_read) with
-   | End_of_file -> ());
+let is_probably_binary t ~num_bytes_to_read =
+  let open I64.O in
   let buf = peek t in
-  With_return.with_return (fun { return } ->
-    Slice.iter buf ~f:(fun byte -> if Char.to_int byte >= 128 then return true);
-    false)
-  [@nontail]
+  let len = I64.min (Slice.length buf) num_bytes_to_read in
+  [%debug_assert len >= #0L];
+  let buf = Slice.unsafe_slice buf ~pos:#0L ~len in
+  Slice.exists buf ~f:(fun byte -> Int.O.(Char.to_int byte >= 128)) [@nontail]
 ;;

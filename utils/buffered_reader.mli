@@ -21,4 +21,4 @@ val peek : t -> Slice.t @ local
 
 (** Returns [true] if this file is "probably binary", based on some heuristic that looks
     at the first [num_bytes_to_read] bytes. *)
-val is_probably_binary : ?num_bytes_to_read:int (** default: [1024] *) -> t -> bool
+val is_probably_binary : t -> num_bytes_to_read:i64 -> bool

@@ -142,6 +142,16 @@ let iteri t ~f =
   done
 ;;
 
+let exists t ~f =
+  let open I64.O in
+  let[@loopify] rec aux bytes pos end_ =
+    if pos >= end_
+    then false
+    else f (Data.unsafe_get bytes pos) || aux bytes (pos + #1L) end_
+  in
+  aux t.bytes t.pos (t.pos + t.len) [@nontail]
+;;
+
 let[@inline always] unsafe_slice t ~pos ~len = exclave_
   let open I64.O in
   let t = { t with pos = t.pos + pos; len } in

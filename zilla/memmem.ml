@@ -30,7 +30,7 @@ module%template
        val root : t -> pos:i64 -> len:i64 -> Ptr.t
      end) =
 struct
-  let rec memcmp a b ~len =
+  let[@loopify] rec memcmp a b ~len =
     let open I64.O in
     if len <= #0L
     then true
@@ -67,10 +67,10 @@ struct
         |> I64.of_int
         |> Vec.set1
       in
-      let rec aux_serial haystack =
+      let[@loopify] rec aux_serial haystack =
         if String.Ptr.not_past_end (String.Ptr.advance haystack (needle_len - #1L))
         then (
-          let rec loop haystack needle len =
+          let[@loopify] rec loop haystack needle len =
             if len <= #0L
             then true
             else
@@ -87,7 +87,7 @@ struct
           else aux_serial (String.Ptr.advance haystack #1L))
         else String.Ptr.advance haystack needle_len
       in
-      let rec aux_simd haystack =
+      let[@loopify] rec aux_simd haystack =
         if String.Ptr.not_past_end
              (String.Ptr.advance haystack (needle_len - #1L + Vec.size_bytes () - #1L))
         then (
@@ -102,7 +102,7 @@ struct
           if contains_candidates
           then (
             let candidates = Vec.movemask candidates in
-            let rec aux candidates i =
+            let[@loopify] rec aux candidates i =
               if candidates = #0L
               then I64.Option.none ()
               else if candidates land #1L = #1L
