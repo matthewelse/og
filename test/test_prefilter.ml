@@ -8,7 +8,7 @@ let%expect_test "example" =
     |> Or_error.ok_exn
     |> Og.Backends.Nfa_hybrid.compile
   in
-  let needle = Og.Backends.Nfa_hybrid.look_for_constant re |> Option.value_exn in
+  let needle = Og.Backends.Nfa_hybrid.look_for_constant re |> Or_null.value_exn in
   print_s [%message (needle : Bigstring.t)];
   [%expect {| (needle _save) |}];
   let reader =

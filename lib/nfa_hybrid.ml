@@ -8,7 +8,6 @@ module State : sig
   val zero : t
   val succ : t -> t
   val to_int : t -> int
-  val of_int_exn : int -> t
   val of_i64 : i64 -> t
   val to_i64 : t -> i64
 

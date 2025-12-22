@@ -10,7 +10,7 @@ type t =
 
 let empty = []
 
-let[@tail_mod_cons] rec singleton i =
+let rec singleton i =
   let open I64.O in
   if i < #0L
   then failwith "i must be greater than 0"
@@ -59,14 +59,17 @@ let union t1 t2 =
 
 let fold t ~init ~(local_ f) =
   let open I64.O in
-  let rec fold_inner t list_offset ~init ~f =
+  let[@loopify] rec fold_inner t list_offset ~init ~f =
     match t with
     | [] -> init
     | hd :: tl ->
-      let rec aux i acc ~f =
-        let bit = hd land (#1L lsl I64.to_int_trunc i) in
-        let acc = if bit <> #0L then f acc (list_offset + i) else acc in
-        if i = #64L then acc else aux (i + #1L) acc ~f
+      let[@loopify] rec aux i acc ~f =
+        if i = #64L
+        then acc
+        else (
+          let bit = hd land (#1L lsl I64.to_int_trunc i) in
+          let acc = if bit <> #0L then f acc (list_offset + i) else acc in
+          aux (i + #1L) acc ~f)
       in
       fold_inner tl (list_offset + #64L) ~init:(aux #0L init ~f) ~f
   in
@@ -95,15 +98,15 @@ let%expect_test "test basic functionality" =
     {| 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 |}];
   iter [ #0L; #0x0000_ffff_ffff_0000L ] ~f:print_i64;
   [%expect
-    {| 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 |}];
+    {| 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 |}];
   iter [ #0L; #0x1L ] ~f:print_i64;
-  [%expect {| 63 |}];
+  [%expect {| 64 |}];
   iter [ #0L; #0x7L ] ~f:print_i64;
-  [%expect {| 63 64 65 |}];
+  [%expect {| 64 65 66 |}];
   iter [ #0x1L; #0x7L ] ~f:print_i64;
-  [%expect {| 0 63 64 65 |}];
+  [%expect {| 0 64 65 66 |}];
   iter [ #0x4000_0000_0000_0001L; #0x7L ] ~f:print_i64;
-  [%expect {| 0 62 63 64 65 |}]
+  [%expect {| 0 62 64 65 66 |}]
 ;;
 
 let of_list is = List.fold is ~init:empty ~f:(fun acc i -> add acc (I64.of_int i))
