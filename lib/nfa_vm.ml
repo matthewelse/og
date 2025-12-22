@@ -4,7 +4,7 @@ open Import
 
 module Opcode = struct
   type ('a, 'b) t =
-    | Class : (char list, unit) t
+    | Class : (Charset.boxed, unit) t
     | Eol : (unit, unit) t
     | Jump : (int, unit) t
     | Split : (int, int) t
@@ -18,7 +18,7 @@ module Instruction = struct
     match opcode with
     | Class ->
       let () = arg2 in
-      [%sexp Class (arg1 : char list)]
+      [%sexp Class (arg1 : Charset.boxed)]
     | Eol ->
       let (), () = arg1, arg2 in
       [%sexp Eol]
@@ -31,7 +31,7 @@ module Instruction = struct
       [%sexp Match]
   ;;
 
-  let character_class c = T #(Class, c, ())
+  let character_class c = T #(Class, Box (Charset.of_list c), ())
   let eol () = T #(Eol, (), ())
   let jump n = T #(Jump, n, ())
   let split first second = T #(Split, first, second)
@@ -128,13 +128,11 @@ let eval (t : Instruction.t Vec.t) (slice : Slice.t @ local) =
           let (T instruction) = Vec.unsafe_get t pc in
           (match
              match instruction with
-             | #(Class, group, ()) ->
+             | #(Class, Box group, ()) ->
                let c = Slice.get slice pos in
                (match c with
                 | Null -> ()
-                | This c ->
-                  if List.exists group ~f:(Char.equal c)
-                  then Vec0.push_back next_thread (pc + 1));
+                | This c -> if Charset.mem group c then Vec0.push_back next_thread (pc + 1));
                false
              | #(Eol, (), ()) ->
                if I64.O.(pos = Slice.length slice) then Vec0.push_back next_thread (pc + 1);

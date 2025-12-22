@@ -37,6 +37,8 @@ let mem (#(a, b, c, d) : t) char =
 
 let sexp_of_t t = Char.all |> List.filter ~f:(mem t) |> [%sexp_of: char list]
 
+type boxed = Box of t [@@deriving sexp_of]
+
 let%expect_test "bits" =
   List.map Char.all ~f:(fun c ->
     let bit = bit c |> I64.box in

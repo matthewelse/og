@@ -58,6 +58,7 @@ let main
       Stats.on_file_searched stats;
       while
         try
+          (* FIXME: this is garbage *)
           (match Og.Backends.Nfa_hybrid.look_for_constant regex with
            | None -> ()
            | Some needle ->
