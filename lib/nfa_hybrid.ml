@@ -9,10 +9,15 @@ module State : sig
   val succ : t -> t
   val to_int : t -> int
   val of_int_exn : int -> t
+  val of_i64 : i64 -> t
+  val to_i64 : t -> i64
 
   include Comparable.S_plain with type t := t
 end = struct
   include Int
+
+  let of_i64 n = I64.to_int_trunc n
+  let to_i64 n = I64.of_int n
 end
 
 module Node = struct
@@ -63,18 +68,18 @@ end = struct
   let create states = Bitset.of_list (List.map states ~f:State.to_int)
 
   let fold t ~init ~f =
-    Bitset.fold t ~init ~f:(fun acc i -> f acc (State.of_int_exn i)) [@nontail]
+    Bitset.fold t ~init ~f:(fun acc i -> f acc (State.of_i64 i)) [@nontail]
   ;;
 
-  let mem t state = Bitset.mem t (State.to_int state)
+  let mem t state = Bitset.mem t (State.to_i64 state)
 end
 
 type t =
   { nfa : Node.t iarray
-  ; cache : DState.t option Charmap.t DState.Table.t
+  ; cache : DState.t or_null Charmap.t DState.Table.t
   ; accepting_state : State.t
   ; flags : Flags.t
-  ; look_for_constant : Bigstring.t option
+  ; look_for_constant : Bigstring.t or_null
   }
 [@@deriving sexp_of]
 
@@ -174,7 +179,7 @@ let compile (re : Regex0.t) =
   build
     ~flags:re.flags
     ~look_for_constant:
-      (Option.map ~f:(fun str -> Bigstring.of_string str) (Regex0.best_constant re))
+      (Or_null.map ~f:(fun str -> Bigstring.of_string str) (Regex0.best_constant re))
     (fun builder -> aux builder re.re ~initial_state:(Builder.fresh_state builder))
 ;;
 
@@ -184,7 +189,7 @@ let unsafe_get_state (t : t) state =
 ;;
 
 let find_or_add_dstate t dstate =
-  Hashtbl.find_or_add t.cache dstate ~default:(fun () -> Charmap.create None)
+  Hashtbl.find_or_add t.cache dstate ~default:(fun () -> Charmap.create Null)
 ;;
 
 let rec add_state t next_state acc ~generation ~state_generations =
@@ -212,8 +217,8 @@ let rec eval_inner t (local_ input) ~offset ~dstate ~generation ~state_generatio
   | This c ->
     let dstate =
       match dnode.:(c) with
-      | Some dstate -> dstate
-      | None ->
+      | This dstate -> dstate
+      | Null ->
         let nlist =
           DState.fold dstate ~init:[] ~f:(fun acc state ->
             (* TODO melse: safety assertion *)
@@ -227,7 +232,7 @@ let rec eval_inner t (local_ input) ~offset ~dstate ~generation ~state_generatio
         in
         let dstate' = DState.create nlist in
         (* cache the state transition for next time *)
-        dnode.:(c) <- Some dstate';
+        dnode.:(c) <- This dstate';
         dstate'
     in
     eval_inner t input ~offset:(offset + #1L) ~dstate ~generation ~state_generations
@@ -236,8 +241,8 @@ let rec eval_inner t (local_ input) ~offset ~dstate ~generation ~state_generatio
 let eval t input =
   let maybe_contains_constant =
     match t.look_for_constant with
-    | None -> true
-    | Some pattern ->
+    | Null -> true
+    | This pattern ->
       Camlzilla.Memmem.Bigstring.memmem
         ~needle:pattern
         ~needle_pos:#0L

@@ -60,8 +60,8 @@ let main
         try
           (* FIXME: this is garbage *)
           (match Og.Backends.Nfa_hybrid.look_for_constant regex with
-           | None -> ()
-           | Some needle ->
+           | Null -> ()
+           | This needle ->
              let needle =
                Slice.create_local
                  needle
