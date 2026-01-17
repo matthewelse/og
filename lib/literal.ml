@@ -26,12 +26,11 @@ let eval t haystack =
       else true
     in
     eol_length_match
-    &&
-    (match%optional_u.Slice.Option
-       Slice.slice haystack ~pos:#0L ~len:(Slice.length pattern)
-     with
-     | None -> false
-     | Some haystack -> Slice.memcmp pattern haystack [@nontail]))
+    && match%optional_u.Slice.Option
+         Slice.slice haystack ~pos:#0L ~len:(Slice.length pattern)
+       with
+       | None -> false
+       | Some haystack -> Slice.memcmp pattern haystack [@nontail])
   else if Flags.mem t.flags Require_eol
   then (
     let pattern = Slice.Search_pattern.pattern t.look_for in

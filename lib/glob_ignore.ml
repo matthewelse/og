@@ -13,7 +13,11 @@ let should_ignore t path =
     let open I64.O in
     Slice.length path >= Slice.length dir_slice
     &&
-    match Slice.memcmp (Slice.unsafe_slice path ~pos:#0L ~len:(Slice.length dir_slice)) dir_slice with
+    match
+      Slice.memcmp
+        (Slice.unsafe_slice path ~pos:#0L ~len:(Slice.length dir_slice))
+        dir_slice
+    with
     | false -> false
     | true ->
       Regex.Compiled.matches

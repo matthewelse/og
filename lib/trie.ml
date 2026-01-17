@@ -116,7 +116,6 @@ let of_strings =
     end)
 ;;
 
-
 let is_accepting_state (local_ t) id =
   let idx = Id.to_int_exn id in
   (* SAFETY: [t.(n)] always contains [accepting_state_idx + 1] elements. *)

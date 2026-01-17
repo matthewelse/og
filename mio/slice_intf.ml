@@ -16,19 +16,23 @@ module type S = sig @@ portable
 
   (** A value of [t] can always be assumed to contain a valid range, i.e. [pos >= 0],
       [len >= 0] and [pos + len <= String.length bytes]. *)
-  type t = private #{ global_ bytes : data; pos : int64#; len : int64# }
+  type t = private
+    #{ global_ bytes : data
+     ; pos : int64#
+     ; len : int64#
+     }
   [@@deriving sexp_of]
 
   val to_string : t -> string
   val of_string : string -> t
 
-  (** Unboxed optional slice using len = #-1L as sentinel for None.
-      Use [match%optional_u.Slice.Option] for pattern matching. *)
+  (** Unboxed optional slice using len = #-1L as sentinel for None. Use
+      [match%optional_u.Slice.Option] for pattern matching. *)
   module Option : sig @@ portable
     type outer := t
 
-    (** Abstract type to distinguish optional slices from regular slices.
-        Has the same representation as [Slice.t] but prevents accidental misuse. *)
+    (** Abstract type to distinguish optional slices from regular slices. Has the same
+        representation as [Slice.t] but prevents accidental misuse. *)
     type t : value & bits64 & bits64
 
     val none : unit -> t
@@ -59,6 +63,7 @@ module type S = sig @@ portable
 
   (** Alias for [unsafe_create]. *)
   val unsafe_create_local : data -> pos:int64# -> len:int64# -> t
+
   val length : t -> int64#
 
   (** [get_exn t pos] raises if [pos < 0 || pos >= length t]. *)

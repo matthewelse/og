@@ -12,6 +12,6 @@ module Compiled : sig
   val matches : t -> Slice.t @ local -> bool
 end
 
-(** [compile regex] compiles the provided regex into a non-deterministic finite
-    automaton (NFA). *)
+(** [compile regex] compiles the provided regex into a non-deterministic finite automaton
+    (NFA). *)
 val compile : ?impl:Implementation.t -> t -> Compiled.t
