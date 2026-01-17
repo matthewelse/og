@@ -210,14 +210,44 @@ val f : ('a : float64). 'a -> 'a      (* universally quantified layout *)
 let flip #(x, y, ~lbl:z) = #(~lbl:z, y, x)
 type t = #(int * float# * lbl:string)
 
-(* Unboxed records *)
+(* Unboxed records - flat layout, passed in registers *)
 type t = #{ f : float# ; s : string }
 let inc #{ f ; s } = #{ f = F64.O.(f + #1.0) ; s }
-let get_s t = t.#s                    (* projection with .# *)
+
+(* Field access uses .# syntax *)
+let get_f t = t.#f                    (* projection with .# *)
+let get_s t = t.#s
+
+(* Construction uses #{ ... } *)
+let make f s = #{ f; s }
+
+(* No "with" syntax - must reconstruct all fields *)
+let set_f t new_f = #{ f = new_f; s = t.#s }
 
 (* Implicit unboxed records - t# auto-generated from t *)
 type t = { i : int ; s : string }
 let box : t# -> t = fun #{ i ; s } -> { i ; s }
+```
+
+**Layout considerations:** Unboxed records have product layouts (e.g., `value & bits64 & bits64`). This means:
+- They cannot be used in standard `list` or `option` (which require `value` layout)
+- Define custom sentinel-based option types when needed (similar to `UFO`)
+- Use `ppx_template` for layout-polymorphic code (see below)
+
+**Returning unboxed types from error branches:** `failwith` and similar functions return `'a` with `value` layout, which doesn't unify with unboxed return types. Use the `never_returns` pattern:
+
+```ocaml
+(* Problem: failwith returns 'a : value, but we need value & bits64 & bits64 *)
+let slice_exn t ~pos ~len : Slice.t =
+  if pos < #0L
+  then failwith "bad pos"  (* Error: layout mismatch *)
+  else ...
+
+(* Solution: match on never_returns to satisfy the type checker *)
+let slice_exn t ~pos ~len : Slice.t =
+  if pos < #0L
+  then (match failwith "bad pos" with (_ : never_returns) -> .)
+  else ...
 ```
 
 ### Or_null (Unboxed Options)
@@ -235,6 +265,62 @@ let arr = [| #2l |]                   (* int32# array *)
 (* Use [@layout_poly] for generic array operations *)
 external[@layout_poly] get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
 ```
+
+## ppx_template - Layout Polymorphism
+
+**Dependency:** `ppx_template`
+
+`ppx_template` enables layout-polymorphic code by generating specialized versions for different layouts at compile time (similar to C++ templates). Use it when you need functions, module types, or types that work with multiple layouts.
+
+### Basic Usage
+
+```ocaml
+(* Define a template with layout parameter *)
+let%template[@kind k = (value, bits64, value & bits64 & bits64)] identity
+  (type a : k)
+  (x : a)
+  = x
+
+(* Use with explicit layout annotation *)
+let id_int = (identity [@kind value]) 42
+let id_float = (identity [@kind bits64]) #3.14
+```
+
+### Module Types with Layout Parameters
+
+```ocaml
+(* Template module type - generates versions for each layout *)
+module type%template [@kind k = (value, value & bits64 & bits64)] Stringy = sig
+  type t : k
+  val length : t -> int64#
+  val get : t -> int64# -> char
+end
+
+(* Use in function with matching layout annotation *)
+let%template[@kind k = (value, value & bits64 & bits64)] process
+  (type s : k)
+  (module S : Stringy with type t = s[@kind k])
+  (input : s)
+  = S.length input
+
+(* Call with specific layout *)
+let len = (process [@kind value]) (module String) "hello"
+let len = (process [@kind value & bits64 & bits64]) (module Slice) slice
+```
+
+### When to Use ppx_template
+
+- **First-class modules with unboxed types**: Standard first-class modules require `value` layout; templates let you use unboxed types
+- **Generic array operations**: Work with arrays of any element layout
+- **Polymorphic containers**: Build data structures that work with multiple layouts
+- **Performance-critical code**: Get specialized codegen without runtime dispatch
+
+### Key Points
+
+- Each layout variant generates completely separate code (no runtime polymorphism)
+- Layout list in `[@kind k = (...)]` defines which specializations to generate
+- Use `[@kind layout]` at call sites to select the specialization
+- Works with functions, module types, and type definitions
 
 ## SIMD Vectors
 
@@ -378,7 +464,9 @@ type t : immutable_data    (* kind annotation *)
 | Unboxed int | `#42L : int64#` | No boxing overhead |
 | Unboxed tuple | `#(a, b, c)` | Pass in registers |
 | Unboxed record | `#{ f = x }` | Flat memory layout |
-| Unboxed field | `r.#field` | Unboxed record field |
+| Unboxed field access | `r.#field` | Access unboxed record field |
+| ppx_template | `let%template[@kind k = ...]` | Layout-polymorphic code |
+| Template call | `(f [@kind layout])` | Select template specialization |
 | Array project | `arr.(i)` | Standard |
 | Iarray project | `arr.:(i)` | Immutable array |
 | Iarray literal | `[: a; b; c :]` | Immutable array |

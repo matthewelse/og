@@ -34,12 +34,12 @@ let matches (t @ local) ~input ~offset : I64.Option.t =
        else I64.Option.none ())
   | Literal l ->
     let substring = Slice.Search_pattern.pattern l in
-    (match Slice.slice input ~pos:offset ~len:(Slice.length substring) with
+    (match%optional_u.Slice.Option
+       Slice.slice input ~pos:offset ~len:(Slice.length substring)
+     with
      | None -> I64.Option.none ()
      | Some input_substring ->
        if Slice.memcmp substring input_substring
-       then (
-         let length = Slice.length substring in
-         I64.Option.some length)
+       then I64.Option.some (Slice.length substring)
        else I64.Option.none ())
 ;;

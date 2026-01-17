@@ -13,7 +13,6 @@ val root_state : Id.t
 type t [@@deriving sexp_of]
 
 val of_strings : string list -> t
-val of_slices : Slice.t list @ local -> t
 val is_accepting_state : t @ local -> Id.t -> bool
 
 (** Returns [Id.root_state] if [char] does not have a child at this point. *)

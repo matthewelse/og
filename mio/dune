@@ -13,6 +13,7 @@
    ppx_optional
    ppx_sexp_conv
    ppx_sexp_message
+   ppx_sexp_value
    -mode
    --
    %{profile}))

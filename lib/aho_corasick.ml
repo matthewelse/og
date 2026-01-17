@@ -49,12 +49,6 @@ module Builder = struct
     failure_links, output_links
   ;;
 
-  let of_slices slices =
-    let trie = Trie.of_slices slices in
-    let failure_links, output_links = generate_failure_links trie in
-    { trie; failure_links; output_links }
-  ;;
-
   let of_strings strings =
     let trie = Trie.of_strings strings in
     let failure_links, output_links = generate_failure_links trie in
@@ -91,24 +85,23 @@ let of_builder (builder : Builder.t) =
 ;;
 
 let of_strings strings = Builder.of_strings strings |> of_builder
-let of_slices strings = Builder.of_slices strings |> of_builder
 
 let is_accepting_state t state =
   Iarray.length (Iarray.get t.output_links (Trie.Id.to_int_exn state)) <> 0
 ;;
 
-module type Stringy = sig
-  type t
+module type%template [@kind k = (value, value & bits64 & bits64)] Stringy = sig
+  type t : k
 
   val length : t @ local -> int64#
   val unsafe_get : t @ local -> int64# -> char
 end
 
-let[@inline always] matches_stringy
-  (type s)
-  (module Stringy : Stringy with type t = s)
-  t
-  (string : s)
+let%template[@inline always] [@kind k = (value, value & bits64 & bits64)] matches_stringy
+  (type s : k)
+  (module Stringy : Stringy with type t = s[@kind k])
+  (t @ local)
+  (string : s @ local)
   =
   let open I64.O in
   let local_ state : Trie.Id.t ref = ref Trie.root_state in
@@ -138,7 +131,9 @@ let matches_string t string =
     string
 ;;
 
-let matches_slice t slice = matches_stringy (module Slice) t slice
+let matches_slice t slice =
+  (matches_stringy [@kind value & bits64 & bits64]) (module Slice) t slice
+;;
 
 let%expect_test "check string matching" =
   let strings = [ "meet"; "meat"; "eating"; "tiny"; "in"; "eat" ] in

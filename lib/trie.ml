@@ -116,14 +116,6 @@ let of_strings =
     end)
 ;;
 
-let of_slices =
-  of_stringy
-    (module struct
-      include Slice
-
-      let iter t ~f = iter t ~f
-    end)
-;;
 
 let is_accepting_state (local_ t) id =
   let idx = Id.to_int_exn id in

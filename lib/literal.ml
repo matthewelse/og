@@ -15,7 +15,7 @@ let compile (re : Regex0.t) =
   | _ -> failwith "Literal matcher doesn't support non-literals."
 ;;
 
-let eval t (local_ haystack) =
+let eval t haystack =
   let open I64.O in
   if Flags.mem t.flags Require_sol
   then (
@@ -27,13 +27,15 @@ let eval t (local_ haystack) =
     in
     eol_length_match
     &&
-    match Slice.slice haystack ~pos:#0L ~len:(Slice.length pattern) with
-    | None -> false
-    | Some haystack -> Slice.memcmp pattern haystack [@nontail])
+    (match%optional_u.Slice.Option
+       Slice.slice haystack ~pos:#0L ~len:(Slice.length pattern)
+     with
+     | None -> false
+     | Some haystack -> Slice.memcmp pattern haystack [@nontail]))
   else if Flags.mem t.flags Require_eol
   then (
     let pattern = Slice.Search_pattern.pattern t.look_for in
-    match
+    match%optional_u.Slice.Option
       Slice.slice
         haystack
         ~pos:(Slice.length haystack - Slice.length pattern)

@@ -38,106 +38,130 @@ module Data = struct
 end
 
 type t =
-  { (* If you change this, update the implementation of [slice_stubs.c]. *)
-    global_ bytes : Data.t
-  ; pos : (I64.t[@globalized])
-  ; len : (I64.t[@globalized])
-  }
-[@@deriving globalize, sexp_of]
+  #{ global_ bytes : Data.t
+   ; pos : I64.t
+   ; len : I64.t
+   }
+
+let sexp_of_t t =
+  [%sexp
+    { bytes = (t.#bytes : (Data.t[@sexp.opaque]))
+    ; pos = (t.#pos : I64.t)
+    ; len = (t.#len : I64.t)
+    }]
+;;
 
 module Expert = struct
-  let bytes (local_ t) = t.bytes
-  let pos t = t.pos
-  let len t = t.len
+  let bytes t = t.#bytes
+  let pos t = t.#pos
+  let len t = t.#len
 end
 
-let to_string t = Data.substring t.bytes ~pos:t.pos ~len:t.len
+let to_string t = Data.substring t.#bytes ~pos:t.#pos ~len:t.#len
 
 let print_endline t =
   Out_channel.output_substring
     stdout
-    ~buf:(Data.to_string t.bytes)
-    ~pos:(I64.to_int_trunc t.pos)
-    ~len:(I64.to_int_trunc t.len);
+    ~buf:(Data.to_string t.#bytes)
+    ~pos:(I64.to_int_trunc t.#pos)
+    ~len:(I64.to_int_trunc t.#len);
   Out_channel.newline stdout
 ;;
 
 let check_bounds t =
   let open I64.O in
-  if t.pos + t.len > Data.length t.bytes
-  then (
-    let t = globalize t in
-    raise_s [%message "Start index+length out of bounds" (t : t)])
-  else if t.pos < #0L
-  then (
-    let t = globalize t in
-    raise_s [%message "Start position < 0" (t : t)])
-  else if t.len < #0L
-  then (
-    let t = globalize t in
-    raise_s [%message "Length < 0" (t : t)])
+  if t.#pos + t.#len > Data.length t.#bytes
+  then raise_s [%message "Start index+length out of bounds" (t : t)]
+  else if t.#pos < #0L
+  then raise_s [%message "Start position < 0" (t : t)]
+  else if t.#len < #0L
+  then raise_s [%message "Length < 0" (t : t)]
 ;;
 
 let unsafe_create bytes ~pos ~len =
-  let t = { bytes; pos; len } in
+  let t = #{ bytes; pos; len } in
   [%debug_run check_bounds t];
   t
 ;;
 
-let unsafe_create_local bytes ~pos ~len = exclave_
-  let t = { bytes; pos; len } in
-  [%debug_run check_bounds t];
-  t
-;;
+let unsafe_create_local = unsafe_create
 
 let create bytes ~pos ~len =
-  let t = { bytes; pos; len } in
+  let t = #{ bytes; pos; len } in
   check_bounds t;
   t
 ;;
 
-let create_local bytes ~pos ~len = exclave_
-  let local_ t = { bytes; pos; len } in
-  check_bounds t;
-  t
-;;
+let create_local = create
 
 let of_string s =
   let d = Data.of_string s in
   unsafe_create d ~pos:#0L ~len:(Data.length d)
 ;;
 
-let length t = t.len
+module Option = struct
+  (** Unboxed optional slice using len = #-1L as sentinel for None. Compatible with
+      ppx_optional via [match%optional_u.Slice.Option]. *)
 
-let get_exn (local_ t) ix =
+  type nonrec t = t
+
+  let[@inline always] is_none t = I64.equal t.#len (-#1L)
+  let[@inline always] is_some t = not (is_none t)
+
+  let none () =
+    (* bytes doesn't matter for None, use a dummy *)
+    #{ bytes = Bigstring.create 0; pos = #0L; len = -#1L }
+  ;;
+
+  let some t = t
+  let unsafe_value t = t
+
+  let value_exn t =
+    if is_none t then failwith "Slice.Option.value_exn: None";
+    t
+  ;;
+
+  let[@inline always] value t ~default = if is_none t then default else unsafe_value t
+
+  module Optional_syntax = struct
+    module Optional_syntax = struct
+      let is_none = is_none
+      let unsafe_value = unsafe_value
+    end
+  end
+end
+
+let length t = t.#len
+
+let get_exn t ix =
   let open I64.O in
-  if ix >= t.len || ix < #0L
+  if ix >= t.#len || ix < #0L
   then failwith "index out of bounds"
-  else Data.unsafe_get t.bytes (t.pos + ix)
+  else Data.unsafe_get t.#bytes (t.#pos + ix)
 ;;
 
-let get (local_ t) ix =
+let get t ix =
   let open I64.O in
-  if ix >= t.len || ix < #0L then Null else This (Data.unsafe_get t.bytes (t.pos + ix))
+  if ix >= t.#len || ix < #0L then Null else This (Data.unsafe_get t.#bytes (t.#pos + ix))
 ;;
 
-let unsafe_get (local_ t) ix =
+let unsafe_get t ix =
   let open I64.O in
-  [%debug_assert I64.O.(ix < t.len && ix >= #0L)];
-  Data.unsafe_get t.bytes (t.pos + ix)
+  [%debug_assert I64.O.(ix < t.#len && ix >= #0L)];
+  Data.unsafe_get t.#bytes (t.#pos + ix)
 ;;
 
 let iter t ~f =
   let open I64.O in
-  for%loop i = #0L to (t.len [@exclusive]) do
-    f (Data.unsafe_get t.bytes (i + t.pos))
+  for%loop i = #0L to (t.#len [@exclusive]) do
+    f (Data.unsafe_get t.#bytes (i + t.#pos))
   done
 ;;
 
 let iteri t ~f =
   let open I64.O in
-  for%loop i = #0L to (t.len [@exclusive]) do
-    f i (Data.unsafe_get t.bytes (i + t.pos))
+  for%loop i = #0L to (t.#len [@exclusive]) do
+    f i (Data.unsafe_get t.#bytes (i + t.#pos))
   done
 ;;
 
@@ -148,35 +172,37 @@ let exists t ~f =
     then false
     else f (Data.unsafe_get bytes pos) || aux bytes (pos + #1L) end_
   in
-  aux t.bytes t.pos (t.pos + t.len) [@nontail]
+  aux t.#bytes t.#pos (t.#pos + t.#len) [@nontail]
 ;;
 
-let[@inline always] unsafe_slice t ~pos ~len = exclave_
+let[@inline always] unsafe_slice t ~pos ~len =
   let open I64.O in
-  let t = { t with pos = t.pos + pos; len } in
+  let t = #{ bytes = t.#bytes; pos = t.#pos + pos; len } in
   [%debug_run check_bounds t];
   t
 ;;
 
-let slice t ~pos ~len =
+let slice t ~pos ~len : Option.t =
   let open I64.O in
-  if pos < #0L || len < #0L || pos + len > t.len
-  then None
-  else exclave_ Some (unsafe_slice ~pos ~len t)
+  if pos < #0L || len < #0L || pos + len > t.#len
+  then Option.none ()
+  else Option.some (unsafe_slice ~pos ~len t)
 ;;
 
 let slice_exn t ~pos ~len =
   let open I64.O in
-  if pos < #0L || len < #0L || pos + len > t.len
-  then failwith "index out of bounds"
-  else exclave_ unsafe_slice ~pos ~len t
+  if pos < #0L || len < #0L || pos + len > t.#len
+  then (
+    match failwith "index out of bounds" with
+    | (_ : never_returns) -> .)
+  else unsafe_slice ~pos ~len t
 ;;
 
-let slice_from t ~pos =
+let slice_from t ~pos : Option.t =
   let open I64.O in
-  if pos < #0L || pos >= t.len
-  then None
-  else exclave_ Some (unsafe_slice t ~pos ~len:(t.len - pos))
+  if pos < #0L || pos >= t.#len
+  then Option.none ()
+  else Option.some (unsafe_slice t ~pos ~len:(t.#len - pos))
 ;;
 
 let splat c =
@@ -193,7 +219,7 @@ let splat c =
 ;;
 
 let memchr t c : I64.Option.t =
-  Camlzilla.Memchr.Bigstring.memchr t.bytes c ~pos:t.pos ~len:t.len
+  Camlzilla.Memchr.Bigstring.memchr t.#bytes c ~pos:t.#pos ~len:t.#len
 ;;
 
 let rec rmemchr_slow_path t c ~offset : I64.Option.t =
@@ -211,20 +237,20 @@ let rec rmemchr_fast_path t c mask_c ~offset : I64.Option.t =
   let open I64.O in
   let mask_lo = #0x0101010101010101L in
   let mask_hi = #0x8080808080808080L in
-  if offset >= #0L && offset + #8L <= t.len
+  if offset >= #0L && offset + #8L <= t.#len
   then (
-    let bytes = Data.unsafe_get_i64 t.bytes (t.pos + offset) in
+    let bytes = Data.unsafe_get_i64 t.#bytes (t.#pos + offset) in
     let with_c_zeros = I64.O.(bytes lxor mask_c) in
     let res = I64.O.((with_c_zeros - mask_lo) land lnot with_c_zeros land mask_hi) in
     if I64.O.(res <> #0L)
     then exclave_ rmemchr_slow_path t c ~offset:(offset + #7L)
     else exclave_ rmemchr_fast_path t c mask_c ~offset:(offset - #8L))
-  else exclave_ rmemchr_slow_path t c ~offset:I64.(min (offset + #8L) (t.len - #1L))
+  else exclave_ rmemchr_slow_path t c ~offset:I64.(min (offset + #8L) (t.#len - #1L))
 ;;
 
 let rmemchr t c : I64.Option.t = exclave_
   let open I64.O in
-  rmemchr_fast_path t c (splat c) ~offset:(t.len - #8L)
+  rmemchr_fast_path t c (splat c) ~offset:(t.#len - #8L)
 ;;
 
 let rec memcmp_slow_path t t' ~offset ~length =
@@ -239,15 +265,15 @@ let rec memcmp_fast_path t t' ~offset ~length =
   let open I64.O in
   if offset + #8L <= length
   then (
-    let bytes = Data.unsafe_get_i64 t.bytes (t.pos + offset) in
-    let bytes' = Data.unsafe_get_i64 t'.bytes (t'.pos + offset) in
+    let bytes = Data.unsafe_get_i64 t.#bytes (t.#pos + offset) in
+    let bytes' = Data.unsafe_get_i64 t'.#bytes (t'.#pos + offset) in
     bytes = bytes' && memcmp_fast_path t t' ~offset:(offset + #8L) ~length)
   else memcmp_slow_path t t' ~offset ~length
 ;;
 
-let memcmp (local_ t) (local_ t') =
+let memcmp t t' =
   let open I64.O in
-  t.len = t'.len && memcmp_fast_path t t' ~offset:#0L ~length:t.len
+  t.#len = t'.#len && memcmp_fast_path t t' ~offset:#0L ~length:t.#len
 ;;
 
 module KMP = struct
@@ -342,13 +368,13 @@ module BMH = struct
   let rec indexes_from t haystack ~f ~offset =
     (* Boyer-Moore-Horspool string matching *)
     let open I64.O in
-    match slice haystack ~pos:offset ~len:t.pattern.len with
+    match%optional_u.Option slice haystack ~pos:offset ~len:t.pattern.#len with
     | None -> ()
     | Some haystack_slice ->
       if memcmp haystack_slice t.pattern then f offset;
       let last_character_of_haystack_slice =
-        (* SAFETY: [haystack_slice] has length [t.pattern.len] *)
-        unsafe_get haystack_slice (t.pattern.len - #1L)
+        (* SAFETY: [haystack_slice] has length [t.pattern.#len] *)
+        unsafe_get haystack_slice (t.pattern.#len - #1L)
       in
       (* FIXME: safety *)
       let offset = offset + unsafe_get_jump t last_character_of_haystack_slice in
@@ -401,7 +427,7 @@ module Boyer_moore = struct
           let prefix_suffix = String.suffix prefix suffix_length in
           if String.is_suffix ~suffix:prefix_suffix suffix
              && not
-                  ((Option.equal [@mode local])
+                  ((Core.Option.equal [@mode local])
                      (Char.equal [@mode local])
                      (at pattern (String.length pattern - 1 - suffix_length))
                      (at pattern (String.length pattern - 1 - suffix_length - offset)))
@@ -442,7 +468,9 @@ module Boyer_moore = struct
     else (
       let local_ offset = I64.Ref.create_local (length t.pattern - #1L) in
       while
-        match slice haystack ~pos:!offset ~len:(length haystack - !offset) with
+        match%optional_u.Option
+          slice haystack ~pos:!offset ~len:(length haystack - !offset)
+        with
         | None -> false
         | Some slice ->
           (match%optional_u.I64.Option
@@ -497,19 +525,19 @@ module Search_pattern = Boyer_moore
 
 let unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len =
   Bigstring.unsafe_blit
-    ~src:src.bytes
-    ~src_pos:(I64.to_int_trunc src.pos + src_pos)
-    ~dst:dst.bytes
-    ~dst_pos:(I64.to_int_trunc dst.pos + dst_pos)
+    ~src:src.#bytes
+    ~src_pos:(I64.to_int_trunc src.#pos + src_pos)
+    ~dst:dst.#bytes
+    ~dst_pos:(I64.to_int_trunc dst.#pos + dst_pos)
     ~len
 ;;
 
 let blit ~src ~src_pos ~dst ~dst_pos ~len =
   if src_pos < 0
      || len < 0
-     || src_pos + len > I64.to_int_trunc src.len
+     || src_pos + len > I64.to_int_trunc src.#len
      || dst_pos < 0
-     || dst_pos + len > I64.to_int_trunc dst.len
+     || dst_pos + len > I64.to_int_trunc dst.#len
   then failwith "index out of bounds"
   else unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len
 ;;

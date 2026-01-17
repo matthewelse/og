@@ -24,7 +24,7 @@ let%expect_test "string slices" =
 let%expect_test "test string matching" =
   let pat =
     Slice.Search_pattern.create
-      (Slice.of_string "asdf" |> Slice.slice_exn ~pos:#0L ~len:#3L |> Slice.globalize)
+      (Slice.of_string "asdf" |> Slice.slice_exn ~pos:#0L ~len:#3L)
   in
   let result =
     Slice.Search_pattern.index pat (Slice.of_string "asdf") |> I64.Option.to_option
