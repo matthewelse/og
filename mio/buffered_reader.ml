@@ -76,7 +76,7 @@ external mio_explain_error
 let ensure_slow_path t n =
   let open I64.O in
   assert (n >= #0L);
-  if n > t.max_size then raise Buffer_limit_exceeded;
+  if n > t.max_size then raise_notrace Buffer_limit_exceeded;
   (* We don't have enough data yet, so we'll need to do a read. *)
   (* If the buffer is empty, we might as well use all of it: *)
   if t.len = #0L then t.pos <- #0L;
@@ -118,7 +118,7 @@ let ensure_slow_path t n =
       let got : i64 =
         match Reader.read t.reader free_space with
         | Eof ->
-          (match raise End_of_file with
+          (match raise_notrace End_of_file with
            | (_ : Nothing.t) -> .)
         | Error _ ->
           mio_explain_error ();
@@ -130,7 +130,7 @@ let ensure_slow_path t n =
     done;
     assert (buffered_bytes t >= n)
   with
-  | End_of_file -> raise End_of_file
+  | End_of_file -> raise_notrace End_of_file
 ;;
 
 let ensure t n =

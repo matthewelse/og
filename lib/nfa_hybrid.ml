@@ -258,12 +258,12 @@ let eval t input =
   let dstate = DState.create (add_state t State.zero [] ~generation ~state_generations) in
   if Flags.mem t.flags Require_sol
   then eval_inner t input ~offset:#0L ~dstate ~generation ~state_generations [@nontail]
-  else
-    With_return.with_return (fun { return } ->
-      for%loop offset = #0L to I64.O.(Slice.length input - #1L) do
-        if eval_inner t input ~offset ~dstate ~generation ~state_generations
-        then return true
-      done;
-      false)
-    [@nontail]
+  else (
+    let[@loopify] rec aux offset =
+      let open I64.O in
+      offset < Slice.length input
+      && (eval_inner t input ~offset ~dstate ~generation ~state_generations
+          || aux (offset + #1L))
+    in
+    aux #0L [@nontail])
 ;;
